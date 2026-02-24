@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent – Weather Chat</title>
+    <link rel="stylesheet" href="{{ root_path }}/static/css/app.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Agent</h1>
+            <p>Chat with the weather-obsessed agent. Ask to <em>recall the weather record</em> for the Chicago polar vortex report.</p>
+        </div>
+        <div class="chat-panel">
+            <div id="chat-messages" class="chat-messages"></div>
+            <div id="status-area" class="status-area"></div>
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Type a message..." autocomplete="off" />
+                <button id="send-button" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const WS_URL = "{{ ws_url }}";
+        const ROOT_PATH = "{{ root_path }}" || "";
+    </script>
+    <script src="{{ root_path }}/static/js/app.js"></script>
+</body>
+</html>

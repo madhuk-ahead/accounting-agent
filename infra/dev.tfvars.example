@@ -1,0 +1,11 @@
+# Example tfvars for dev. Copy to dev.tfvars and set project_name to a unique value.
+# Apply with: terraform apply -var-file=dev.tfvars
+
+project_name = "my-agent"   # Change to a unique name to avoid collisions
+environment  = "dev"
+aws_region   = "us-east-1"
+service_path = "/agent"
+
+# Optional: use existing Lambda layer ARNs to avoid building layers
+# strands_layer_arn = "arn:aws:lambda:us-east-1:ACCOUNT:layer:layer-name:VERSION"
+# openai_layer_arn  = "arn:aws:lambda:us-east-1:ACCOUNT:layer:openai:VERSION"

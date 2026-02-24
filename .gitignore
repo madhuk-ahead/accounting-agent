@@ -1,0 +1,27 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+tfplan
+
+# Build and dist
+build/
+dist/
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+
+# Strands-AHEAD wheel (place here for layer build; do not commit)
+strands-ahead-package/strands_ahead-*.whl
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
