@@ -62,18 +62,39 @@ body {
   margin: 0;
   padding: 1.5rem;
   overflow: auto;
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   font-size: 0.9rem;
   line-height: 1.7;
-  white-space: pre-wrap;
-  word-wrap: break-word;
   color: #94a3b8;
+}
+
+.file-preview.has-content,
+.file-preview.has-content * {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
 
 .file-preview.has-content {
   color: #e2e8f0;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
+
+.file-preview.has-content h1,
+.file-preview.has-content h2 {
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 1.25em 0 0.5em 0;
+  line-height: 1.3;
+}
+
+.file-preview.has-content h1 { font-size: 1.35rem; }
+.file-preview.has-content h2 { font-size: 1.1rem; }
+.file-preview.has-content h3 { font-size: 1rem; color: #f1f5f9; margin: 1em 0 0.35em 0; }
+
+.file-preview.has-content p { margin: 0 0 0.75em 0; }
+.file-preview.has-content strong { font-weight: 600; color: #f1f5f9; }
+.file-preview.has-content em { font-style: italic; color: #cbd5e1; }
+.file-preview.has-content hr { border: none; border-top: 1px solid #334155; margin: 1.5em 0; }
+.file-preview.has-content ul { margin: 0.5em 0; padding-left: 1.5em; }
 
 /* Header */
 .header {

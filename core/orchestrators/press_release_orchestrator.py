@@ -21,40 +21,60 @@ except ImportError as e:
     import sys
     print(f"[PRESS_RELEASE_ORCH] LangGraph import failed: {e}", file=sys.stderr)
 
-PRESS_RELEASE_SYSTEM_PROMPT = """You are a Press Release Drafting Assistant. Your job is to help users turn rough drafts and key topics into polished, publication-ready press releases.
+PRESS_RELEASE_SYSTEM_PROMPT = """You are a Press Release Drafting Assistant. Your job is to help users turn rough drafts and key topics into polished, publication-ready press releases across multiple announcement types.
 
 ## Your behavior
 - ALWAYS use the internal lookup tools (lookup_company_boilerplate, lookup_product_facts, lookup_quotes, lookup_partner_info, lookup_metrics, fetch_press_kit_document) to ground your draft with real facts. Do NOT invent facts, metrics, or quotes.
 - If information is missing from the tools, say so explicitly and suggest what to add to the internal sources.
+- Tailor the draft to the user's selected **press release type** and **tone**.
 - Structure every press release with: headline (required), subhead (optional), dateline, body, quotes, boilerplate, media contact.
-- Adapt tone and voice to the user's selected tone (professional, conversational, bold, formal).
+
+## Press release types – tailor content and emphasis accordingly
+- **product_launch**: Focus on product features, differentiators, availability. Use lookup_product_facts heavily. Lead with the product name and value proposition.
+- **partnership**: Lead with both companies. Use lookup_partner_info for partner details. Emphasize joint benefits, scope of collaboration, timelines.
+- **funding**: Lead with round size and use of funds. Use lookup_metrics for growth, traction. Include investor quotes if available; otherwise CEO quote on company vision.
+- **award**: Lead with the award name and recipient. Emphasize significance, criteria, and what it means for the company. Use company boilerplate and quotes.
+- **event**: Lead with event name, date, location. Include agenda highlights, speakers, how to attend. Use lookup_metrics or product facts if the event features product demos or milestones.
+- **executive_hire**: Lead with the executive's name and title. Include background, rationale for hire, quote from CEO or hiring manager. Use lookup_company_boilerplate and lookup_quotes.
 
 ## Press release structure (follow this template)
-1. **Headline** – Compelling, newsworthy, concise
+1. **Headline** – Compelling, newsworthy, concise (type-specific)
 2. **Subhead** (optional) – Supporting detail or context
-3. **Dateline** – [CITY, STATE – Date]
+3. **Dateline** – ALWAYS call lookup_dateline() to get the real-time date and location. Use the returned "dateline" value (e.g. "San Francisco, CA - February 26, 2026"). Do NOT use [CITY, STATE - Date] placeholders.
 4. **Lead paragraph** – Who, what, when, where, why in 1–2 sentences
-5. **Body** – Supporting paragraphs with facts from your lookups
+5. **Body** – Supporting paragraphs with facts from your lookups (tailored to type)
 6. **Quotes** – Use approved quotes from lookup_quotes; attribute correctly
 7. **Boilerplate** – Use lookup_company_boilerplate
 8. **Media contact** – Standard format: Name, Title, Email, Phone
 
 ## Tools
+- lookup_dateline: Returns current date and location for the dateline (call this first for every press release)
 - lookup_company_boilerplate: Company description and boilerplate
-- lookup_product_facts: Product features, differentiators
+- lookup_product_facts: Product features, differentiators (for product_launch, event)
 - lookup_quotes: Approved executive quotes (e.g., CEO, CMO)
-- lookup_partner_info: Partner blurbs and facts
-- lookup_metrics: Metrics, dates, locations
+- lookup_partner_info: Partner blurbs and facts (for partnership)
+- lookup_metrics: Metrics, dates, locations (for funding, milestones)
 - fetch_press_kit_document: Long-form docs (company_overview.md, product_one_pager.md, etc.)
-- save_press_release: Save the final draft to internal storage (call this when the user accepts or when you deliver the complete draft)
+- save_press_release: Save the final draft to internal storage (call when you deliver the complete draft)
 
-When the user provides a rough draft and key topics, first fetch relevant internal data, then draft the press release. Call save_press_release with the final content before responding. Mention briefly which sources you used (e.g., "Used company boilerplate, CEO quote, and product facts")."""
+When the user provides a rough draft and key topics, first fetch relevant internal data for the selected type, then draft the press release. Call save_press_release with the final content before responding.
+
+CRITICAL: Your final response to the user must contain ONLY the formatted press release text. Do NOT include:
+- Raw JSON or tool output (e.g. {"id": "quote:ceo", ...})
+- Metadata like "key", "success", or file paths
+- Descriptions of what you found or which sources you used
+Output only the press release itself, using markdown: **Headline**, *Subhead*, and clear structure."""
 
 
-def _build_task_message(rough_draft: str, key_topics: str, tone: str, **constraints) -> str:
+def _build_task_message(rough_draft: str, key_topics: str, tone: str, press_release_type: str = "product_launch", **constraints) -> str:
     """Build a structured user message from form inputs."""
+    from datetime import datetime, timezone
+    current_date = datetime.now(tz=timezone.utc).strftime("%B %d, %Y")
     parts = [
         "Please draft a press release with the following inputs:",
+        "",
+        "**Press release type:**",
+        press_release_type.replace("_", " ").title(),
         "",
         "**Rough draft:**",
         rough_draft or "(none provided)",
@@ -64,6 +84,9 @@ def _build_task_message(rough_draft: str, key_topics: str, tone: str, **constrai
         "",
         "**Tone:**",
         tone or "professional",
+        "",
+        "**Current date (use for dateline):**",
+        current_date,
     ]
     if constraints.get("audience"):
         parts.extend(["", "**Target audience:**", constraints["audience"]])
@@ -79,6 +102,10 @@ def _build_task_message(rough_draft: str, key_topics: str, tone: str, **constrai
 def _make_press_release_tools(settings: Settings, session_id: str) -> list:
     """Create tool functions for LangGraph (plain functions with docstrings)."""
     tools = []
+
+    def lookup_dateline() -> dict:
+        """Fetch current date and location for the press release dateline. Call this first to get the real-time dateline."""
+        return press_release_tools.lookup_dateline()
 
     def lookup_company(company_id: str = "acme") -> dict:
         """Fetch company boilerplate and description. Use when you need the About Us / company description section."""
@@ -109,7 +136,7 @@ def _make_press_release_tools(settings: Settings, session_id: str) -> list:
         return press_release_tools.save_press_release(session_id, content, filename)
 
     tools.extend([
-        lookup_company, lookup_product, lookup_quote, lookup_partner,
+        lookup_dateline, lookup_company, lookup_product, lookup_quote, lookup_partner,
         lookup_metric, fetch_doc, save_release,
     ])
     return tools
@@ -239,6 +266,7 @@ class PressReleaseOrchestrator(AgentOrchestrator):
                 rough_draft=form_data.get("rough_draft", ""),
                 key_topics=form_data.get("key_topics", ""),
                 tone=form_data.get("tone", "professional"),
+                press_release_type=form_data.get("press_release_type", "product_launch"),
                 audience=form_data.get("audience"),
                 length=form_data.get("length"),
                 cta=form_data.get("cta"),

@@ -93,6 +93,28 @@ def lookup_partner_info(partner_id: str = "globex") -> dict[str, Any]:
         return {"error": str(e)}
 
 
+def lookup_dateline() -> dict[str, Any]:
+    """Fetch dateline location from config. Use with current date at generation time.
+    Returns location (e.g. San Francisco, CA). Caller should use today's date for the dateline."""
+    settings = get_settings()
+    try:
+        from datetime import datetime, timezone
+        table = _get_dynamodb_table(settings)
+        resp = table.get_item(Key={"id": "config:dateline"})
+        item = resp.get("Item") or {}
+        location = item.get("location", "San Francisco, CA")
+        current_date = datetime.now(tz=timezone.utc).strftime("%B %d, %Y")
+        return {"location": location, "current_date": current_date, "dateline": f"{location} - {current_date}"}
+    except Exception as e:
+        from datetime import datetime, timezone
+        return {
+            "location": "San Francisco, CA",
+            "current_date": datetime.now(tz=timezone.utc).strftime("%B %d, %Y"),
+            "dateline": f"San Francisco, CA - {datetime.now(tz=timezone.utc).strftime('%B %d, %Y')}",
+            "error": str(e),
+        }
+
+
 def lookup_metrics(metrics_id: str = "q1-2026") -> dict[str, Any]:
     """Fetch metrics (toy metrics, dates, locations) from internal knowledge."""
     settings = get_settings()

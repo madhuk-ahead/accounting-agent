@@ -25,9 +25,10 @@ function initWebSocket() {
                 appendMessage("AGENT", msg.content || "");
                 transcript += "\nAGENT: " + (msg.content || "");
                 if (msg.file_content) {
-                    currentFileContent = msg.file_content;
+                    const cleaned = stripMetadata(msg.file_content);
+                    currentFileContent = cleaned;
                     const preview = document.getElementById("file-preview");
-                    preview.textContent = msg.file_content;
+                    preview.innerHTML = renderMarkdown(cleaned);
                     preview.classList.add("has-content");
                     document.getElementById("download-btn").disabled = false;
                 }
@@ -50,6 +51,7 @@ function getFormData() {
     return {
         rough_draft: (document.getElementById("rough-draft")?.value || "").trim(),
         key_topics: (document.getElementById("key-topics")?.value || "").trim(),
+        press_release_type: document.getElementById("press-release-type")?.value || "product_launch",
         tone: document.getElementById("tone")?.value || "professional",
         audience: (document.getElementById("audience")?.value || "").trim() || undefined,
         length: (document.getElementById("length")?.value || "").trim() || undefined,
@@ -133,6 +135,43 @@ function escapeHtml(s) {
     const div = document.createElement("div");
     div.textContent = s;
     return div.innerHTML;
+}
+
+function stripMetadata(text) {
+    if (!text || typeof text !== "string") return text;
+    let out = text;
+    // Remove lookup_dateline tool output: {"location":"...","current_date":"...","dateline":"..."}
+    out = out.replace(/\{"location"\s*:\s*"[^"]*"\s*,\s*"current_date"\s*:\s*"[^"]*"\s*,\s*"dateline"\s*:\s*"[^"]*"[^}]*\}/g, "");
+    // Remove metrics object (nested JSON in value)
+    out = out.replace(/\{"id"\s*:\s*"metrics:[^"]*"\s*,\s*"metrics"\s*:\s*"(?:[^"\\]|\\.)*"\}/g, "");
+    // Remove other tool output JSON: company, product, quote, partner (simple structure)
+    out = out.replace(/\{"id"\s*:\s*"(company|product|quote|partner):[^}]*\}/g, "");
+    // Remove S3 save metadata
+    out = out.replace(/\{"key"\s*:\s*"exports\/[^"]*"\s*,\s*"success"\s*:\s*true\}/g, "");
+    // Remove any remaining {...} with "id": or "key": (catch-all)
+    out = out.replace(/\{[^{}]*"(id|key|success)"\s*:\s*[^{}]*\}/g, "");
+    out = out.replace(/\n{3,}/g, "\n\n").trim();
+    return out;
+}
+
+function renderMarkdown(text) {
+    if (!text || typeof text !== "string") return escapeHtml(text || "");
+    if (typeof marked !== "undefined") {
+        try {
+            marked.setOptions({ breaks: true });
+            return marked.parse(text);
+        } catch (e) {
+            return escapeHtml(text);
+        }
+    }
+    // Fallback: basic markdown
+    return escapeHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+        .replace(/\n/g, "<br>");
 }
 
 document.addEventListener("DOMContentLoaded", () => {

@@ -23,10 +23,16 @@ KNOWLEDGE_ITEMS = [
             "Acme Corp is a leading provider of enterprise software solutions, "
             "helping businesses worldwide streamline operations and accelerate growth. "
             "Founded in 2018, Acme serves over 2,000 customers across 45 countries. "
-            "For more information, visit www.acmecorp.com."
+            "Headquarters: San Francisco, CA. For more information, visit www.acmecorp.com."
         ),
         "description": "Acme Corp delivers cloud-native platforms that empower teams to work smarter.",
         "media_contact": "Sarah Chen, Director of Communications, pr@acmecorp.com, (555) 123-4567",
+        "dateline_location": "San Francisco, CA",
+        "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+    },
+    {
+        "id": "config:dateline",
+        "location": "San Francisco, CA",
         "updated_at": datetime.now(tz=timezone.utc).isoformat(),
     },
     {
