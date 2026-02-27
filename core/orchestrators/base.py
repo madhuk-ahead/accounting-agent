@@ -12,6 +12,7 @@ class OrchestratorResult:
     """Result from a single orchestrator turn."""
     content: str
     raw: Any = None
+    file_content: str | None = None  # When set (e.g. press release), display in file panel
 
 
 class AgentOrchestrator(ABC):

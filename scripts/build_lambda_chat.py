@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Lambda zip for WebSocket chat handler. Excludes strands and openai (provided by layers).
+"""Build Lambda zip for WebSocket chat handler (Press Release agent with LangGraph).
 
 Uses Docker to install dependencies so pydantic_core is built for Linux x86_64 (Lambda).
 """
@@ -43,8 +43,8 @@ def main():
         install_script = temp_path / "install.sh"
         install_script.write_text("""#!/bin/bash
 set -e
-pip install --upgrade pip
-pip install -r requirements.txt -t deps --no-cache-dir
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt -t deps --no-cache-dir --prefer-binary
 """)
         install_script.chmod(0o755)
 

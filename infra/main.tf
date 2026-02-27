@@ -37,6 +37,4 @@ locals {
     ManagedBy   = "Terraform"
   }
 
-  strands_ahead_layer_arn = var.strands_layer_arn != null ? var.strands_layer_arn : try(aws_lambda_layer_version.strands_ahead[0].arn, null)
-  openai_layer_arn        = var.openai_layer_arn != null ? var.openai_layer_arn : try(aws_lambda_layer_version.openai[0].arn, null)
 }

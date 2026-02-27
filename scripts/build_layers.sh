@@ -3,6 +3,12 @@
 # Produces infra/layers/artifacts/strands-ahead-layer.zip and openai-layer.zip for linux/amd64.
 # For Strands-AHEAD: place strands_ahead-*.whl in strands-ahead-package/ then run this script.
 # Or set strands_layer_arn in Terraform to use an existing layer and build openai only.
+#
+# Note: if you plan to run the chat Lambda with LangGraph (ORCHESTRATOR_TYPE=
+# langgraph), you can simply ignore this script – the terraform config will
+# skip creating any layers when orchestrator_type is "langgraph".  Instead add
+# the langgraph packages to requirements-lambda.txt and bundle them in the
+# chat zip.
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,7 +21,10 @@ trap "rm -rf '$WORK'" EXIT
 
 echo "Building Lambda layers (Python 3.11, linux/amd64)..."
 echo ""
-
+echo "(This script is only needed when using the Strands orchestrator;"
+echo " the default is now LangGraph so layers are skipped unless you set"
+echo " ORCHESTRATOR_TYPE=strands / orchestrator_type=strands.)"
+echo ""
 # Strands-AHEAD layer (from local wheel in strands-ahead-package/)
 echo "Building strands-ahead layer..."
 if ! "$PROJECT_ROOT/infra/layers/strands_ahead/build_layer.sh"; then

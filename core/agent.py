@@ -1,4 +1,4 @@
-"""Agent manager: runs the orchestrator (Strands) for chat turns."""
+"""Agent manager: runs the Press Release orchestrator for chat turns."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ class RunResult:
     message: str
     buttons: list[Any]
     conversation_id: str
+    file_content: str | None = None  # For press release: content to show in file panel
 
 
 _agent_manager: "AgentManager | None" = None
@@ -31,7 +32,7 @@ def get_agent_manager(settings: Settings | None = None) -> "AgentManager":
 
 
 class AgentManager:
-    """Runs the orchestrator for each chat turn. Stub until Step 4 wires Strands."""
+    """Runs the Press Release orchestrator for each chat turn."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -43,9 +44,9 @@ class AgentManager:
         transcript: str = "",
         host_id: Any = None,
         on_stream_message: Callable[[str, str], None] | None = None,
+        form_data: dict | None = None,
     ) -> RunResult:
-        """Run one turn: user message -> orchestrator -> response. Implemented in Step 4 with Strands."""
-        # Stub: will be replaced by Strands orchestrator in Step 4
+        """Run one turn: user message -> orchestrator -> response."""
         from core.orchestrators import get_orchestrator
         orchestrator = get_orchestrator(self.settings, session_id=conversation_id)
         result = orchestrator.run_turn(
@@ -53,11 +54,14 @@ class AgentManager:
             conversation_history=self._parse_transcript(transcript),
             session_id=conversation_id,
             on_stream_message=on_stream_message,
+            form_data=form_data,
+            user_text=user_text,
         )
         return RunResult(
             message=result.content or "I had nothing to say.",
             buttons=[],
             conversation_id=conversation_id,
+            file_content=getattr(result, "file_content", None),
         )
 
     def _parse_transcript(self, transcript: str) -> list[dict[str, str]]:

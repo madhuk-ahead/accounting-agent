@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name for resource naming. Change before deploy to avoid collisions. Keep short (e.g. agent-tmpl): ALB and target group names have a 32-character limit."
   type        = string
-  default     = "empty-agent-template"
+  default     = "mk-pr-agent-dev"
 }
 
 variable "environment" {
@@ -36,14 +36,3 @@ variable "openai_api_key_secret_name" {
   default     = "openai_api_key"
 }
 
-variable "strands_layer_arn" {
-  description = "Optional ARN of existing Strands-AHEAD Lambda layer. If not provided, a new layer will be created (requires layers/artifacts/strands-ahead-layer.zip)."
-  type        = string
-  default     = null
-}
-
-variable "openai_layer_arn" {
-  description = "Optional ARN of existing OpenAI Lambda layer. If not provided, a new layer will be created (requires layers/artifacts/openai-layer.zip)."
-  type        = string
-  default     = null
-}

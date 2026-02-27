@@ -14,8 +14,8 @@ output "path_prefix" {
 }
 
 output "websocket_api_url" {
-  description = "WebSocket API endpoint URL (wss://)"
-  value       = replace(aws_apigatewayv2_api.websocket.api_endpoint, "https://", "wss://")
+  description = "WebSocket API endpoint URL (wss://). Append /$default for connections."
+  value       = "${replace(aws_apigatewayv2_api.websocket.api_endpoint, "https://", "wss://")}/${aws_apigatewayv2_stage.websocket.name}"
 }
 
 output "websocket_api_id" {
@@ -63,12 +63,7 @@ output "ecs_service_name" {
   value       = aws_ecs_service.frontend.name
 }
 
-output "strands_ahead_layer_arn" {
-  description = "Strands-AHEAD Lambda layer ARN"
-  value       = local.strands_ahead_layer_arn != null ? local.strands_ahead_layer_arn : (length(aws_lambda_layer_version.strands_ahead) > 0 ? aws_lambda_layer_version.strands_ahead[0].arn : "not_created")
-}
-
-output "openai_layer_arn" {
-  description = "OpenAI Lambda layer ARN"
-  value       = local.openai_layer_arn != null ? local.openai_layer_arn : (length(aws_lambda_layer_version.openai) > 0 ? aws_lambda_layer_version.openai[0].arn : "not_created")
+output "s3_press_kit_bucket" {
+  description = "S3 bucket for press-kit documents and press release exports"
+  value       = aws_s3_bucket.press_kit.id
 }

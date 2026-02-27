@@ -1,3 +1,6 @@
-# Lambda handlers – minimal deps. strands-agents and openai come from Lambda layers for the chat function.
+# Lambda chat handler – Press Release agent (LangGraph)
 pydantic>=2.0.0
 boto3>=1.28.0
+langgraph>=0.2.0
+langchain-openai>=0.2.0
+langchain-core>=0.3.0

@@ -3,28 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent – Weather Chat</title>
-    <link rel="stylesheet" href="{{ root_path }}/static/css/app.css">
+    <title>Press Release Drafting Assistant</title>
+    <link rel="stylesheet" href="{{ root_path }}/static/css/app.css?v=2">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Agent</h1>
-            <p>Chat with the weather-obsessed agent. Ask to <em>recall the weather record</em> for the Chicago polar vortex report.</p>
-        </div>
-        <div class="chat-panel">
-            <div id="chat-messages" class="chat-messages"></div>
-            <div id="status-area" class="status-area"></div>
-            <div class="input-area">
-                <input type="text" id="user-input" placeholder="Type a message..." autocomplete="off" />
-                <button id="send-button" onclick="sendMessage()">Send</button>
+    <div class="app-layout">
+        <div class="main-panel">
+            <div class="header">
+                <h1>Press Release Drafting Assistant</h1>
+                <p>Turn your rough draft into a polished, publication-ready press release. Add key topics, select tone, and let the assistant enrich the draft with internal facts and approved assets.</p>
             </div>
+
+            <div class="form-section">
+                <h2>Draft inputs</h2>
+                <div class="form-row">
+                    <label for="rough-draft">Rough draft</label>
+                    <textarea id="rough-draft" rows="5" placeholder="Paste your rough draft here..."></textarea>
+                </div>
+                <div class="form-row">
+                    <label for="key-topics">Key topics (must include)</label>
+                    <textarea id="key-topics" rows="2" placeholder="One topic per line, e.g.&#10;Product launch&#10;Partnership with Globex&#10;Q1 metrics"></textarea>
+                </div>
+                <div class="form-row">
+                    <label for="tone">Tone</label>
+                    <select id="tone">
+                        <option value="professional">Professional</option>
+                        <option value="conversational">Conversational</option>
+                        <option value="bold">Bold</option>
+                        <option value="formal">Formal</option>
+                    </select>
+                </div>
+                <details class="optional-constraints">
+                    <summary>Optional constraints</summary>
+                    <div class="form-row">
+                        <label for="audience">Target audience</label>
+                        <input type="text" id="audience" placeholder="e.g. enterprise IT buyers">
+                    </div>
+                    <div class="form-row">
+                        <label for="length">Target length</label>
+                        <input type="text" id="length" placeholder="e.g. 300 words">
+                    </div>
+                    <div class="form-row">
+                        <label for="cta">Call to action</label>
+                        <input type="text" id="cta" placeholder="e.g. Sign up for a demo">
+                    </div>
+                    <div class="form-row">
+                        <label for="exclusions">Exclude</label>
+                        <input type="text" id="exclusions" placeholder="Topics or phrases to avoid">
+                    </div>
+                </details>
+                <button type="button" id="draft-btn" class="primary-btn">Draft press release</button>
+            </div>
+
+            <div id="chat-section" class="chat-section">
+                <h2>Chat</h2>
+                <div id="chat-messages" class="chat-messages"></div>
+                <div id="status-area" class="status-area"></div>
+                <div class="input-area">
+                    <input type="text" id="user-input" placeholder="Iterate: e.g. Make it shorter, change tone to bold..." autocomplete="off" />
+                    <button id="send-button" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="file-panel">
+            <div class="file-panel-header">
+                <h2>Generated press release</h2>
+                <button id="download-btn" class="secondary-btn" disabled title="Download as .md">Download</button>
+            </div>
+            <pre id="file-preview" class="file-preview">No press release yet. Submit the form or use chat to generate one.</pre>
         </div>
     </div>
     <script>
         const WS_URL = "{{ ws_url }}";
         const ROOT_PATH = "{{ root_path }}" || "";
     </script>
-    <script src="{{ root_path }}/static/js/app.js"></script>
+    <script src="{{ root_path }}/static/js/app.js?v=2"></script>
 </body>
 </html>

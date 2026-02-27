@@ -6,3 +6,8 @@ jinja2>=3.1.0
 python-multipart>=0.0.6
 pydantic>=2.0.0
 boto3>=1.28.0
+
+# Optional: LangGraph orchestrator (set ORCHESTRATOR_TYPE=langgraph)
+langgraph>=0.2.0
+langchain-openai>=0.2.0
+langchain-core>=0.3.0

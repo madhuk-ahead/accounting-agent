@@ -1,19 +1,87 @@
 """FastAPI app: static frontend and WebSocket chat page."""
 
-from fastapi import FastAPI, Request
+import json
+import os
+import uuid
+
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import os
 
 from core.config import get_settings
 
 
 def _create_sub_app(settings, templates, root_path: str) -> FastAPI:
-    """Sub-app with health, root, app page, and static. Mount at root_path for ALB path prefix."""
+    """Sub-app with health, root, app page, static, and local WebSocket. Mount at root_path for ALB path prefix."""
     sub = FastAPI()
     sub.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
+
+    @sub.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        """Local WebSocket for development; mimics Lambda chat flow."""
+        await websocket.accept()
+        session_id = str(uuid.uuid4())
+        try:
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+            from core.agent import get_agent_manager
+            agent_manager = get_agent_manager()
+            loop = asyncio.get_event_loop()
+
+            def stream_cb(msg: str, msg_type: str = "status") -> None:
+                fut = asyncio.run_coroutine_threadsafe(
+                    websocket.send_json({"type": msg_type, "content": msg}),
+                    loop,
+                )
+                try:
+                    fut.result(timeout=5)
+                except Exception:
+                    pass
+
+            while True:
+                data = await websocket.receive_text()
+                try:
+                    payload = json.loads(data)
+                except json.JSONDecodeError:
+                    payload = {}
+                user_text = (payload.get("text") or "").strip()
+                conversation = (payload.get("conversation") or "").strip()
+                form_data = payload.get("form_data") or {}
+                if not conversation and user_text:
+                    conversation = f"USER: {user_text}"
+
+                executor = ThreadPoolExecutor(max_workers=1)
+
+                def run_agent():
+                    return agent_manager.run(
+                        conversation_id=session_id,
+                        user_text=user_text,
+                        transcript=conversation,
+                        on_stream_message=stream_cb,
+                        form_data=form_data,
+                    )
+
+                result = await loop.run_in_executor(executor, run_agent)
+                final = {
+                    "type": "final",
+                    "content": result.message,
+                    "buttons": getattr(result, "buttons", []),
+                    "conversation_id": result.conversation_id,
+                    "file_content": getattr(result, "file_content", None),
+                }
+                await websocket.send_json(final)
+        except Exception as e:
+            try:
+                await websocket.send_json({"type": "error", "content": str(e)})
+            except Exception:
+                pass
+        finally:
+            try:
+                await websocket.close()
+            except Exception:
+                pass
 
     @sub.get("/api/health")
     async def health() -> dict[str, str]:

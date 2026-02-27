@@ -9,22 +9,11 @@ from typing import Any
 import sys
 from pathlib import Path
 
-# Ensure Lambda layer packages (strands, openai) are importable: add /opt/python first
-# so the layer is found before /var/task when the orchestrator does "from strands import ..."
-_LAYER_PATH = "/opt/python"
-if _LAYER_PATH not in sys.path:
-    sys.path.insert(0, _LAYER_PATH)
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# One-line cold-start log: confirms path setup and layer visibility for CloudWatch
-if os.path.exists(_LAYER_PATH):
-    _in_path = _LAYER_PATH in sys.path
-    print(f"[CHAT] Cold start: /opt/python exists, in sys.path={_in_path}, path[0:2]={sys.path[:2]}", file=sys.stderr)
-else:
-    print(f"[CHAT] Cold start: /opt/python missing (layers may not be attached)", file=sys.stderr)
+print(f"[CHAT] Cold start: path[0]={sys.path[0]}", file=sys.stderr)
 
 try:
     import boto3
@@ -123,6 +112,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         payload = json.loads(body) if isinstance(body, str) else body
         user_text = (payload.get("text") or "").strip()
         conversation = (payload.get("conversation") or "").strip()
+        form_data = payload.get("form_data") or {}
         if not conversation and user_text:
             conversation = f"USER: {user_text}"
 
@@ -140,6 +130,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             user_text=user_text,
             transcript=conversation,
             on_stream_message=stream_callback,
+            form_data=form_data,
         )
 
         final_message = {
@@ -147,6 +138,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "content": result.message,
             "buttons": getattr(result, "buttons", []),
             "conversation_id": result.conversation_id,
+            "file_content": getattr(result, "file_content", None),
         }
         if domain_name and stage:
             _send_websocket_message(domain_name, stage, connection_id, final_message)

@@ -1,4 +1,4 @@
-"""Orchestrator abstraction. Default implementation: Strands (see strands_orchestrator)."""
+"""Orchestrator abstraction. Press Release Drafting Assistant (LangGraph)."""
 
 from .base import AgentOrchestrator, OrchestratorResult
 from .factory import get_orchestrator

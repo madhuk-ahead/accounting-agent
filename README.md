@@ -1,13 +1,12 @@
-# Empty Agent Template
+# Press Release Drafting Assistant
 
-Generalized deployment template for an AI agent with a single WebSocket chat frontend, Lambda-backed chat (Strands-AHEAD), and one datasource: a DynamoDB knowledge table with a demo “Chicago polar vortex” weather record. The agent can **recall** that record when asked and otherwise chats while steering the conversation toward weather.
+AI-powered Press Release Drafting Assistant with a WebSocket chat frontend, Lambda-backed chat (LangGraph), DynamoDB and S3 datasources. The agent turns rough drafts and key topics into polished, publication-ready press releases using internal facts and approved assets.
 
-## What’s included
+## What's included
 
-- **Terraform**: VPC (default), ALB, ECS Fargate (frontend), Lambda (connect, disconnect, chat), API Gateway WebSocket, DynamoDB (sessions + knowledge), IAM, optional Lambda layers (Strands-AHEAD, OpenAI).
-- **Lambda**: WebSocket connect/disconnect and a chat handler that runs the Strands orchestrator with one tool: `recall_weather_record` (reads from the knowledge table).
-- **Frontend**: FastAPI app serving a single chat page; WebSocket client uses `AGENT_WS_URL`.
-- **Container**: Dockerfile for the frontend (Fargate); health check at `{service_path}/api/health`.
+- **Terraform**: VPC (default), ALB, ECS Fargate (frontend), Lambda (connect, disconnect, chat), API Gateway WebSocket, DynamoDB (sessions + knowledge), S3 (press-kit documents), IAM
+- **Lambda**: WebSocket connect/disconnect and a chat handler that runs the Press Release orchestrator (LangGraph) with tools for DynamoDB lookups and S3 press-kit documents
+- **Frontend**: FastAPI app with form-driven inputs, chat, and right-side file panel for generated press releases
 
 ## Prerequisites
 
@@ -16,19 +15,17 @@ Generalized deployment template for an AI agent with a single WebSocket chat fro
 
 ## Adapt before deploy
 
-**Important:** To avoid name collisions with other deployments, set a **unique `project_name`** (and optionally use a separate Terraform workspace or state key). See **[infra/ADAPT_BEFORE_DEPLOY.md](infra/ADAPT_BEFORE_DEPLOY.md)** for:
+See **[infra/ADAPT_BEFORE_DEPLOY.md](infra/ADAPT_BEFORE_DEPLOY.md)** for:
 
 - Setting `project_name` and `environment`
 - Backend (state) configuration
 - Creating the OpenAI API key secret in Secrets Manager
-- Lambda layers (use existing ARNs or build and place zips in `infra/layers/artifacts/`)
-- Building Lambda zips and seeding the knowledge table after first apply
+- Building Lambda zips after first apply
 
-## Quick start (after adapting)
+## Quick start
 
 1. **Terraform**
    - Set variables (e.g. `project_name`, `environment`) via tfvars or CLI.
-   - **Lambda layers**: Either set `strands_layer_arn` (and optionally `openai_layer_arn`) in tfvars to use existing layers, or build locally: place `strands_ahead-*.whl` in `strands-ahead-package/`, then run `./scripts/build_layers.sh` to produce `infra/layers/artifacts/strands-ahead-layer.zip` and `openai-layer.zip`.
    - Build Lambda zips:
      ```bash
      python scripts/build_lambda_connect.py
@@ -37,34 +34,49 @@ Generalized deployment template for an AI agent with a single WebSocket chat fro
      ```
    - From repo root: `cd infra && terraform init && terraform apply`.
 
-2. **Seed knowledge table** (after first apply):
+2. **Seed data** (after first apply):
    ```bash
    export DYNAMODB_KNOWLEDGE_TABLE=$(terraform -chdir=infra output -raw dynamodb_knowledge_table)
+   export S3_PRESS_KIT_BUCKET=$(terraform -chdir=infra output -raw s3_press_kit_bucket)
    export AWS_REGION=us-east-1
-   python scripts/seed_knowledge.py
+   python scripts/seed_press_release.py
    ```
 
 3. **Frontend image**
    - Build: `docker build --platform linux/amd64 -t agent-template-frontend .`
    - Tag and push to the ECR repository output by Terraform; update ECS service (e.g. force new deployment).
 
-4. Open the frontend (ALB DNS or CloudFront) at `{path_prefix}/app` and chat; ask to **recall the weather record** to get the Chicago polar vortex message.
+4. Open the frontend at `{path_prefix}/app` and use the form to draft a press release.
 
-**If you see "Error: Unknown error" or "Error: StopIteration()"** when sending messages: see **[docs/DEPLOYMENT_FIX_PLAN.md](docs/DEPLOYMENT_FIX_PLAN.md)**. The StopIteration case is caused by OpenTelemetry in the PyPI Strands layer failing in Lambda; the fix is to use a Strands-AHEAD layer (see the plan and [STRANDS_LAYER_AND_OPENAI.md](docs/STRANDS_LAYER_AND_OPENAI.md)).
+## Local development
 
-## Strands layer and OpenAI
+```bash
+export OPENAI_API_KEY=sk-...
+export DYNAMODB_KNOWLEDGE_TABLE=your-table  # optional
+export S3_PRESS_KIT_BUCKET=your-bucket      # optional (after deploy)
+uvicorn app.main:app --reload --port 8000
+```
 
-See **[docs/STRANDS_LAYER_AND_OPENAI.md](docs/STRANDS_LAYER_AND_OPENAI.md)** for how the Strands layer (strands-ahead vs PyPI) and OpenAI API key/calls work in this template compared to secunit_agent and data_auto_engineer.
+Open http://localhost:8000/app. For local dev the WebSocket connects to `/ws` on the same server.
+
+## WebSocket URL
+
+When using the deployed frontend, set `AGENT_WS_URL` to the full WebSocket URL including the stage:
+
+```bash
+terraform -chdir=infra output websocket_api_url
+# Returns: wss://xxx.execute-api.region.amazonaws.com/$default
+```
 
 ## Project layout
 
-- `app/` – FastAPI app (health, static, chat page).
-- `core/` – Config, agent manager, orchestrator (Strands with one tool).
-- `frontend/` – Templates and static (JS/CSS) for the chat UI.
-- `lambda/` – WebSocket connect, disconnect, and chat handlers.
-- `infra/` – Terraform (ALB, ECS, Lambda, API Gateway, DynamoDB, IAM, layers).
-- `scripts/` – Build Lambda zips, seed knowledge table.
+- `app/` – FastAPI app (health, static, chat page, WebSocket for local dev)
+- `core/` – Config, agent manager, Press Release orchestrator (LangGraph), tools
+- `frontend/` – Templates and static (JS/CSS) for the Press Release UI
+- `lambda/` – WebSocket connect, disconnect, and chat handlers
+- `infra/` – Terraform (ALB, ECS, Lambda, API Gateway, DynamoDB, S3, IAM)
+- `scripts/` – Build Lambda zips, seed press release data
 
-## License / use
+## Further reading
 
-Use and adapt as needed for your own agents. Ensure `project_name` and backend/state are unique per deployment to avoid collisions.
+- **[PRESS_RELEASE_SETUP.md](PRESS_RELEASE_SETUP.md)** – Press release features, data sources, WebSocket contract

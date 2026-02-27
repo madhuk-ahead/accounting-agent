@@ -45,16 +45,14 @@ resource "aws_lambda_function" "chat" {
   timeout       = 300
   memory_size   = 512
 
-  layers = compact([
-    local.strands_ahead_layer_arn,
-    local.openai_layer_arn,
-  ])
+  layers = []
 
   environment {
     variables = {
       DYNAMODB_SESSIONS_TABLE  = aws_dynamodb_table.sessions.name
       DYNAMODB_KNOWLEDGE_TABLE = aws_dynamodb_table.knowledge.name
-      OPENAI_API_KEY_SECRET     = var.openai_api_key_secret_name
+      S3_PRESS_KIT_BUCKET      = aws_s3_bucket.press_kit.id
+      OPENAI_API_KEY_SECRET    = var.openai_api_key_secret_name
     }
   }
 

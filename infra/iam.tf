@@ -53,6 +53,18 @@ resource "aws_iam_role_policy" "lambda_execution" {
       {
         Effect = "Allow"
         Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          aws_s3_bucket.press_kit.arn,
+          "${aws_s3_bucket.press_kit.arn}/*",
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "apigatewaymanagementapi:PostToConnection",
           "apigatewaymanagementapi:DeleteConnection",
         ]
