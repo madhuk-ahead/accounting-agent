@@ -123,10 +123,10 @@ def _apply_user_override(
 ) -> OrchestratorResult | None:
     """Parse user modification requests and apply overrides. Returns OrchestratorResult if applied, else None."""
     text_lower = user_text.lower()
-    # Match patterns like "change GL code to 6100", "use account 6100", "GL code 6100", "change account to 6100"
+    # Match: "change GL code to 6100", "use account 6100", "GL 6100", "change account to 6100"
     gl_match = re.search(
-        r"(?:gl\s*code|account\s*code|account)\s*(?:to|as|=)?\s*(\d{4,6})",
-        text_lower,
+        r"(?:gl(?:\s*code)?|account(?:\s*code)?)\s*(?:to|as|=)?\s*(\d{4,6})",
+        user_text,
         re.IGNORECASE,
     )
     if gl_match:

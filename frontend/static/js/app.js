@@ -36,6 +36,10 @@ function initWebSocket() {
                 } else {
                     appendMessage("AGENT", msg.content || "");
                     transcript += "\nAGENT: " + (msg.content || "");
+                    if (msg.confirmation_prompt) {
+                        appendMessage("AGENT", msg.confirmation_prompt);
+                        transcript += "\nAGENT: " + msg.confirmation_prompt;
+                    }
                 }
                 if (msg.file_content) currentFileContent = msg.file_content;
                 if (msg.display_data) currentDisplayData = msg.display_data;
