@@ -4,13 +4,13 @@ To avoid collisions with other deployments and to get a working stack, do the fo
 
 ## 1. Set a unique project name
 
-In `variables.tf` or via `-var` / `.tfvars`, set `project_name` to a value unique to your team or agent (e.g. `my-pr-agent`). The default may cause resource name clashes in the same account/region.
+In `variables.tf` or via `-var` / `.tfvars`, set `project_name` to a value unique to your team or agent (e.g. `my-ap-agent`). The default may cause resource name clashes in the same account/region.
 
 ## 2. Set environment
 
 Set `environment` to `dev` or `prod` (required). Use a `.tfvars` file or workspace:
 
-- Example: `terraform apply -var="environment=dev" -var="project_name=my-pr-agent"`
+- Example: `terraform apply -var="environment=dev" -var="project_name=my-ap-agent"`
 
 ## 3. Backend (state)
 
@@ -41,13 +41,16 @@ Run the build scripts (see README) to generate them. The chat zip includes LangG
 
 ## 6. Seed data (after first apply)
 
-After the first successful `terraform apply`, seed DynamoDB and S3 with press release assets:
+After the first successful `terraform apply`, seed DynamoDB and S3 with AP data:
 
 ```bash
-export DYNAMODB_KNOWLEDGE_TABLE=$(terraform -chdir=infra output -raw dynamodb_knowledge_table)
-export S3_PRESS_KIT_BUCKET=$(terraform -chdir=infra output -raw s3_press_kit_bucket)
+export S3_AP_BUCKET=$(terraform -chdir=infra output -raw s3_ap_bucket)
+export DYNAMODB_VENDORS_TABLE=$(terraform -chdir=infra output -raw dynamodb_vendor_master_table)
+export DYNAMODB_POS_TABLE=$(terraform -chdir=infra output -raw dynamodb_po_ledger_table)
+export DYNAMODB_RECEIPTS_TABLE=$(terraform -chdir=infra output -raw dynamodb_receipts_table)
+export DYNAMODB_INVOICE_STATUS_TABLE=$(terraform -chdir=infra output -raw dynamodb_invoice_status_table)
 export AWS_REGION=us-east-1
-python scripts/seed_press_release.py
+python scripts/seed_ap_invoice.py
 ```
 
 ## 7. WebSocket URL

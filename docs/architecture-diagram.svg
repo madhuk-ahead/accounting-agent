@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc"/>
+      <stop offset="100%" style="stop-color:#f1f5f9"/>
+    </linearGradient>
+    <linearGradient id="frontendGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#2563eb"/>
+    </linearGradient>
+    <linearGradient id="apiGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="lambdaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    <linearGradient id="dataGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <rect width="900" height="620" fill="url(#bgGrad)"/>
+  <title>AP Invoice Triage + Coding Copilot - Architecture Diagram</title>
+
+  <!-- Title -->
+  <text x="450" y="38" text-anchor="middle" font-size="20" font-weight="600" fill="#1e293b">AP Invoice Triage + Coding Copilot  Architecture</text>
+  <text x="450" y="58" text-anchor="middle" font-size="12" fill="#64748b">ECS " API Gateway WebSocket " Lambda " DynamoDB " S3</text>
+
+  <!-- Client / Browser -->
+  <g filter="url(#shadow)">
+    <rect x="50" y="90" width="120" height="80" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="110" y="125" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">Browser</text>
+    <text x="110" y="148" text-anchor="middle" font-size="10" fill="#64748b">/app + WebSocket</text>
+  </g>
+
+  <!-- Frontend (ECS) -->
+  <g filter="url(#shadow)">
+    <rect x="230" y="90" width="140" height="100" rx="8" fill="url(#frontendGrad)"/>
+    <text x="300" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">Frontend</text>
+    <text x="300" y="138" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.9)">ECS Fargate</text>
+    <text x="300" y="155" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.85)">FastAPI + static</text>
+    <text x="300" y="172" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.85)">Jinja templates</text>
+  </g>
+
+  <!-- API Gateway WebSocket -->
+  <g filter="url(#shadow)">
+    <rect x="420" y="90" width="160" height="100" rx="8" fill="url(#apiGrad)"/>
+    <text x="500" y="115" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">API Gateway</text>
+    <text x="500" y="132" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.95)">WebSocket API</text>
+    <text x="500" y="155" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">$connect</text>
+    <text x="500" y="168" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">$disconnect</text>
+    <text x="500" y="181" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">$default (chat)</text>
+  </g>
+
+  <!-- Lambda -->
+  <g filter="url(#shadow)">
+    <rect x="630" y="90" width="140" height="100" rx="8" fill="url(#lambdaGrad)"/>
+    <text x="700" y="115" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">Lambda</text>
+    <text x="700" y="135" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">connect</text>
+    <text x="700" y="150" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">disconnect</text>
+    <text x="700" y="165" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">chat</text>
+    <text x="700" y="180" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.9)">LangGraph orchestrator</text>
+  </g>
+
+  <!-- Arrows: Browser to Frontend -->
+  <path d="M 170 130 L 225 130" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 375 140 L 415 140" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 585 140 L 625 140" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)"/>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- Browser to API Gateway (WebSocket path) -->
+  <path d="M 110 170 Q 200 170 200 220 L 200 240 L 500 240 L 500 195" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 2" fill="none" marker-end="url(#arrowhead2)"/>
+  <defs>
+    <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <text x="350" y="225" font-size="9" fill="#64748b">WebSocket</text>
+
+  <!-- Data stores section -->
+  <rect x="50" y="250" width="800" height="2" fill="#e2e8f0"/>
+  <text x="450" y="275" text-anchor="middle" font-size="11" font-weight="600" fill="#64748b">Data & Services</text>
+
+  <!-- DynamoDB -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="300" width="140" height="100" rx="8" fill="url(#dataGrad)"/>
+    <text x="150" y="330" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">DynamoDB</text>
+    <text x="150" y="352" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">sessions</text>
+    <text x="150" y="367" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">vendor_master</text>
+    <text x="150" y="382" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">po_ledger</text>
+    <text x="150" y="397" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">receipts</text>
+    <text x="150" y="412" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">invoice_status</text>
+  </g>
+
+  <!-- S3 -->
+  <g filter="url(#shadow)">
+    <rect x="260" y="300" width="140" height="100" rx="8" fill="url(#dataGrad)"/>
+    <text x="330" y="330" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">S3</text>
+    <text x="330" y="352" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">invoices/</text>
+    <text x="330" y="367" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">policies/</text>
+    <text x="330" y="382" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.95)">outputs/</text>
+  </g>
+
+  <!-- Secrets Manager -->
+  <g filter="url(#shadow)">
+    <rect x="440" y="300" width="120" height="100" rx="8" fill="#475569" stroke="#334155"/>
+    <text x="500" y="335" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">Secrets</text>
+    <text x="500" y="355" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.9)">Manager</text>
+    <text x="500" y="380" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.85)">OpenAI key</text>
+  </g>
+
+  <!-- OpenAI -->
+  <g filter="url(#shadow)">
+    <rect x="600" y="300" width="120" height="100" rx="8" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="660" y="335" text-anchor="middle" font-size="12" font-weight="600" fill="#0c4a6e">OpenAI</text>
+    <text x="660" y="355" text-anchor="middle" font-size="10" fill="#0369a1">API</text>
+    <text x="660" y="380" text-anchor="middle" font-size="9" fill="#64748b">LLM / extraction</text>
+  </g>
+
+  <!-- Lambda to data arrows -->
+  <path d="M 700 195 L 700 245 L 220 345 L 220 305" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead3)"/>
+  <path d="M 700 245 L 330 345 L 330 305" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead3)"/>
+  <path d="M 700 245 L 500 345 L 500 305" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead3)"/>
+  <path d="M 700 245 L 660 305" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead3)"/>
+  <defs>
+    <marker id="arrowhead3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- LangGraph workflow box -->
+  <rect x="50" y="440" width="800" height="2" fill="#e2e8f0"/>
+  <text x="450" y="465" text-anchor="middle" font-size="11" font-weight="600" fill="#64748b">LangGraph Workflow (chat Lambda)</text>
+
+  <g filter="url(#shadow)">
+    <rect x="80" y="480" width="740" height="100" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="450" y="510" text-anchor="middle" font-size="11" fill="#1e293b">ingest</text>
+    <text x="180" y="510" text-anchor="middle" font-size="11" fill="#64748b">’</text>
+    <text x="280" y="510" text-anchor="middle" font-size="11" fill="#1e293b">validate_and_match</text>
+    <text x="410" y="510" text-anchor="middle" font-size="11" fill="#64748b">’</text>
+    <text x="500" y="510" text-anchor="middle" font-size="11" fill="#1e293b">assign_coding</text>
+    <text x="600" y="510" text-anchor="middle" font-size="11" fill="#64748b">’</text>
+    <text x="680" y="505" text-anchor="middle" font-size="10" fill="#1e293b">router</text>
+    <text x="680" y="555" text-anchor="middle" font-size="9" fill="#64748b">handle_exceptions</text>
+    <text x="750" y="555" text-anchor="middle" font-size="9" fill="#64748b">finalize_packet</text>
+    <line x1="670" y1="520" x2="670" y2="545" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="670" y1="545" x2="640" y2="560" stroke="#94a3b8" stroke-width="1"/>
+    <line x1="670" y1="545" x2="700" y2="560" stroke="#94a3b8" stroke-width="1"/>
+  </g>
+
+  <text x="450" y="605" text-anchor="middle" font-size="10" fill="#94a3b8">Import this SVG into Figma: File ’ Place image or drag &amp; drop</text>
+</svg>

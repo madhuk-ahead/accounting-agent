@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Lambda zip for WebSocket chat handler (Press Release agent with LangGraph).
+"""Build Lambda zip for WebSocket chat handler (AP Invoice Triage with LangGraph).
 
 Uses Docker to install dependencies so pydantic_core is built for Linux x86_64 (Lambda).
 """

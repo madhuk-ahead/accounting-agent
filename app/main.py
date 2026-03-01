@@ -48,7 +48,11 @@ def _create_sub_app(settings, templates, root_path: str) -> FastAPI:
                     payload = {}
                 user_text = (payload.get("text") or "").strip()
                 conversation = (payload.get("conversation") or "").strip()
-                form_data = payload.get("form_data") or {}
+                form_data = dict(payload.get("form_data") or {})
+                if payload.get("last_display_data") is not None:
+                    form_data["last_display_data"] = payload["last_display_data"]
+                if payload.get("last_file_content"):
+                    form_data["last_file_content"] = payload["last_file_content"]
                 if not conversation and user_text:
                     conversation = f"USER: {user_text}"
 
@@ -70,6 +74,9 @@ def _create_sub_app(settings, templates, root_path: str) -> FastAPI:
                     "buttons": getattr(result, "buttons", []),
                     "conversation_id": result.conversation_id,
                     "file_content": getattr(result, "file_content", None),
+                    "display_data": getattr(result, "display_data", None),
+                    "reasoning_stages": getattr(result, "reasoning_stages", None),
+                    "confirmation_prompt": getattr(result, "confirmation_prompt", None),
                 }
                 await websocket.send_json(final)
         except Exception as e:

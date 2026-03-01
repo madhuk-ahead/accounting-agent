@@ -1,4 +1,4 @@
-/* Press Release Drafting Assistant – Refined UI */
+/* AP Invoice Triage + Coding Copilot – UI */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap');
 
 * { box-sizing: border-box; }
@@ -15,12 +15,16 @@ body {
 
 .app-layout {
   display: grid;
-  grid-template-columns: 1fr minmax(380px, 420px);
+  grid-template-columns: 1fr minmax(680px, 50%);
   min-height: 100vh;
   gap: 0;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1400px) {
+  .app-layout { grid-template-columns: 1fr minmax(580px, 45%); }
+}
+
+@media (max-width: 1100px) {
   .app-layout { grid-template-columns: 1fr; }
   .file-panel { border-left: none; border-top: 1px solid #334155; }
 }
@@ -32,16 +36,16 @@ body {
 }
 
 .file-panel {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(8px);
-  border-left: 1px solid rgba(51, 65, 85, 0.5);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(10px);
+  border-left: 1px solid rgba(71, 85, 105, 0.4);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
 .file-panel-header {
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem 2rem;
   border-bottom: 1px solid rgba(51, 65, 85, 0.5);
   display: flex;
   justify-content: space-between;
@@ -51,21 +55,148 @@ body {
 
 .file-panel-header h2 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: #f8fafc;
   letter-spacing: -0.02em;
+}
+
+.invoice-preview {
+  padding: 1rem 2rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.invoice-preview .placeholder-text {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.invoice-preview.has-content .placeholder-text { display: none; }
+
+.invoice-with-overlay {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.invoice-with-overlay .invoice-image,
+.invoice-with-overlay .invoice-pdf {
+  max-width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  display: block;
+}
+
+.invoice-with-overlay .invoice-pdf {
+  width: 100%;
+  min-height: 400px;
+}
+
+.extraction-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.extraction-overlay.visible {
+  opacity: 1;
+}
+
+.extract-zone {
+  position: absolute;
+  border: 2px solid rgba(59, 130, 246, 0.7);
+  background: rgba(59, 130, 246, 0.15);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.extract-zone .zone-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #60a5fa;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  margin: 2px;
+}
+
+/* Sample invoice layout zones (600x780 viewBox) */
+.zone-vendor { left: 6%; top: 5%; width: 28%; height: 14%; }
+.zone-invoice-no { left: 62%; top: 5%; width: 32%; height: 10%; }
+.zone-date { left: 62%; top: 14%; width: 32%; height: 22%; }
+.zone-line-items { left: 6%; top: 34%; width: 90%; height: 32%; }
+.zone-amount { left: 72%; top: 56%; width: 26%; height: 18%; }
+
+.invoice-preview .invoice-image {
+  max-width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.invoice-preview .pdf-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.invoice-preview .pdf-icon {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: #334155;
+  color: #f1f5f9;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
 }
 
 .file-preview {
   flex: 1;
   margin: 0;
-  padding: 1.5rem;
-  overflow: auto;
+  padding: 2rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   font-size: 0.9rem;
   line-height: 1.7;
   color: #94a3b8;
+}
+
+.file-preview::-webkit-scrollbar {
+  width: 8px;
+}
+
+.file-preview::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 4px;
+}
+
+.file-preview::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.file-preview::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 .file-preview.has-content,
@@ -90,11 +221,168 @@ body {
 .file-preview.has-content h2 { font-size: 1.1rem; }
 .file-preview.has-content h3 { font-size: 1rem; color: #f1f5f9; margin: 1em 0 0.35em 0; }
 
+.file-preview .placeholder-text {
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.file-preview.has-content .placeholder-text { display: none; }
 .file-preview.has-content p { margin: 0 0 0.75em 0; }
 .file-preview.has-content strong { font-weight: 600; color: #f1f5f9; }
 .file-preview.has-content em { font-style: italic; color: #cbd5e1; }
 .file-preview.has-content hr { border: none; border-top: 1px solid #334155; margin: 1.5em 0; }
 .file-preview.has-content ul { margin: 0.5em 0; padding-left: 1.5em; }
+
+/* Right-panel structured display – compact rows */
+.file-preview.has-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.file-panel-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.display-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+  padding: 0.6rem 1rem;
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(51, 65, 85, 0.35);
+}
+
+.display-row .row-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-right: 0.25rem;
+}
+
+.display-row .sep {
+  color: #475569;
+  font-weight: 300;
+  margin: 0 0.15rem;
+}
+
+.display-row .tick-ok { color: #4ade80; font-weight: 600; }
+.display-row .tick-fail { color: #f87171; font-weight: 600; }
+.display-row .flags-warn { color: #fbbf24; }
+.display-row .rationale { font-style: italic; color: #94a3b8; }
+
+.display-row.highlighted {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.display-row.highlighted .row-label { color: #60a5fa; }
+
+/* Expanded coding & routing section */
+.display-section {
+  padding: 1rem 1.25rem;
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(51, 65, 85, 0.35);
+}
+
+.display-section-coding {
+  padding: 1.25rem 1.5rem !important;
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
+}
+
+.display-section-coding h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #60a5fa;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.4);
+}
+
+.display-section-coding .coding-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.display-section-coding .coding-grid p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+}
+
+.display-section-coding .coding-next {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.display-section-coding .coding-rationale {
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(71, 85, 105, 0.5);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+/* Reasoning stages in chat */
+.message.reasoning-stages .stages-list {
+  margin-top: 0.5rem;
+}
+
+.message.reasoning-stages .stage-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.message.reasoning-stages .stage-item:last-child {
+  margin-bottom: 0;
+}
+
+.message.reasoning-stages .stage-step {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.message.reasoning-stages .stage-label {
+  font-weight: 600;
+  color: #f1f5f9;
+  min-width: 12em;
+}
+
+.message.reasoning-stages .stage-detail {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
 
 /* Header */
 .header {
@@ -135,6 +423,14 @@ body {
 
 .form-row {
   margin-bottom: 1rem;
+}
+
+.form-row-inline {
+  margin-bottom: 1rem;
+}
+
+.form-row-inline .secondary-btn {
+  margin-right: 0.5rem;
 }
 
 .form-row label {

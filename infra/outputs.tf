@@ -43,9 +43,24 @@ output "dynamodb_sessions_table" {
   value       = aws_dynamodb_table.sessions.name
 }
 
-output "dynamodb_knowledge_table" {
-  description = "Knowledge DynamoDB table name"
-  value       = aws_dynamodb_table.knowledge.name
+output "dynamodb_vendor_master_table" {
+  description = "Vendor master DynamoDB table name"
+  value       = aws_dynamodb_table.vendor_master.name
+}
+
+output "dynamodb_po_ledger_table" {
+  description = "PO ledger DynamoDB table name"
+  value       = aws_dynamodb_table.po_ledger.name
+}
+
+output "dynamodb_receipts_table" {
+  description = "Receipts DynamoDB table name"
+  value       = aws_dynamodb_table.receipts.name
+}
+
+output "dynamodb_invoice_status_table" {
+  description = "Invoice status DynamoDB table name"
+  value       = aws_dynamodb_table.invoice_status.name
 }
 
 output "alb_arn" {
@@ -63,7 +78,7 @@ output "ecs_service_name" {
   value       = aws_ecs_service.frontend.name
 }
 
-output "s3_press_kit_bucket" {
-  description = "S3 bucket for press-kit documents and press release exports"
-  value       = aws_s3_bucket.press_kit.id
+output "s3_ap_bucket" {
+  description = "S3 bucket for AP invoice inbox (invoices/, policies/, outputs/)"
+  value       = aws_s3_bucket.invoice_inbox.id
 }

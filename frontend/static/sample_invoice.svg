@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="780" viewBox="0 0 600 780">
+  <defs>
+    <style>
+      .inv-title { font: bold 28px sans-serif; fill: #1e293b; }
+      .inv-heading { font: bold 12px sans-serif; fill: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+      .inv-body { font: 14px sans-serif; fill: #334155; }
+      .inv-table { font: 12px sans-serif; fill: #475569; }
+      .inv-total { font: bold 16px sans-serif; fill: #1e293b; }
+    </style>
+  </defs>
+  <rect width="600" height="780" fill="#fff"/>
+  <!-- Vendor (top-left) -->
+  <text x="40" y="50" class="inv-heading">From</text>
+  <text x="40" y="72" class="inv-body">TechSupply Inc.</text>
+  <text x="40" y="90" class="inv-body">123 Commerce St</text>
+  <text x="40" y="108" class="inv-body">San Francisco, CA 94105</text>
+  <!-- Invoice # (top-right) -->
+  <text x="380" y="50" class="inv-heading">Invoice #</text>
+  <text x="380" y="72" class="inv-body">INV-2026-001</text>
+  <!-- Date (top-right) -->
+  <text x="380" y="110" class="inv-heading">Date</text>
+  <text x="380" y="132" class="inv-body">2026-02-28</text>
+  <text x="380" y="160" class="inv-heading">Due Date</text>
+  <text x="380" y="182" class="inv-body">2026-03-30</text>
+  <text x="380" y="210" class="inv-heading">PO Reference</text>
+  <text x="380" y="232" class="inv-body">PO-5001</text>
+  <!-- Line items -->
+  <text x="40" y="280" class="inv-title">Invoice</text>
+  <line x1="40" y1="295" x2="560" y2="295" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="325" class="inv-heading">Description</text>
+  <text x="420" y="325" class="inv-heading">Amount</text>
+  <line x1="40" y1="338" x2="560" y2="338" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="365" class="inv-table">IT Equipment (Laptops)</text>
+  <text x="500" y="365" class="inv-table">$3,200.00</text>
+  <text x="40" y="395" class="inv-table">Software License (Annual)</text>
+  <text x="500" y="395" class="inv-table">$1,300.00</text>
+  <line x1="40" y1="420" x2="560" y2="420" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="455" class="inv-body">Subtotal</text>
+  <text x="500" y="455" class="inv-body">$4,500.00</text>
+  <text x="40" y="485" class="inv-body">Tax</text>
+  <text x="500" y="485" class="inv-body">$360.00</text>
+  <text x="40" y="525" class="inv-total">Total</text>
+  <text x="500" y="525" class="inv-total">$4,860.00 USD</text>
+  <!-- Payment terms -->
+  <text x="40" y="570" class="inv-heading">Payment terms</text>
+  <text x="40" y="592" class="inv-body">Net 30</text>
+  <!-- Remit to -->
+  <text x="40" y="640" class="inv-heading">Remit to</text>
+  <text x="40" y="662" class="inv-body">TechSupply Inc.</text>
+  <text x="40" y="680" class="inv-body">123 Commerce St</text>
+  <text x="40" y="698" class="inv-body">San Francisco, CA 94105</text>
+</svg>

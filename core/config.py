@@ -18,17 +18,20 @@ class Settings:
         openai_model: str = "gpt-4o",
         aws_region: str = "us-east-1",
         dynamodb_sessions_table: str = "",
-        dynamodb_knowledge_table: str = "",
-        orchestrator_type: str = "press_release",
-        s3_press_kit_bucket: str = "",
+        orchestrator_type: str = "ap",
+        s3_ap_bucket: str = "",
     ):
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY", "")
         self.openai_model = os.getenv("OPENAI_MODEL", openai_model)
         self.aws_region = os.getenv("AWS_REGION", aws_region)
         self.dynamodb_sessions_table = dynamodb_sessions_table or os.getenv("DYNAMODB_SESSIONS_TABLE", "")
-        self.dynamodb_knowledge_table = dynamodb_knowledge_table or os.getenv("DYNAMODB_KNOWLEDGE_TABLE", "")
-        self.orchestrator_type = os.getenv("ORCHESTRATOR_TYPE", orchestrator_type or "press_release").lower()
-        self.s3_press_kit_bucket = os.getenv("S3_PRESS_KIT_BUCKET", "")
+        orch = (orchestrator_type or os.getenv("ORCHESTRATOR_TYPE", "ap")).lower()
+        self.orchestrator_type = orch if orch in ("langraph", "ap") else "ap"
+        self.s3_ap_bucket = s3_ap_bucket or os.getenv("S3_AP_BUCKET", "")
+        self.dynamodb_vendors_table = os.getenv("DYNAMODB_VENDORS_TABLE", "")
+        self.dynamodb_pos_table = os.getenv("DYNAMODB_POS_TABLE", "")
+        self.dynamodb_receipts_table = os.getenv("DYNAMODB_RECEIPTS_TABLE", "")
+        self.dynamodb_invoice_status_table = os.getenv("DYNAMODB_INVOICE_STATUS_TABLE", "")
         self.cors_allow_origins: List[str] = ["*"]
         # Paths for frontend (app)
         project_root = Path(__file__).resolve().parent.parent

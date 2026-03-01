@@ -1,4 +1,4 @@
-"""Orchestrator abstraction. Press Release Drafting Assistant (LangGraph)."""
+"""Orchestrator abstraction. AP Invoice Triage (LangGraph)."""
 
 from .base import AgentOrchestrator, OrchestratorResult
 from .factory import get_orchestrator

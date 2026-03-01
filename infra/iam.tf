@@ -47,7 +47,10 @@ resource "aws_iam_role_policy" "lambda_execution" {
         Resource = [
           aws_dynamodb_table.sessions.arn,
           "${aws_dynamodb_table.sessions.arn}/index/*",
-          aws_dynamodb_table.knowledge.arn,
+          aws_dynamodb_table.vendor_master.arn,
+          aws_dynamodb_table.po_ledger.arn,
+          aws_dynamodb_table.receipts.arn,
+          aws_dynamodb_table.invoice_status.arn,
         ]
       },
       {
@@ -58,8 +61,8 @@ resource "aws_iam_role_policy" "lambda_execution" {
           "s3:ListBucket",
         ]
         Resource = [
-          aws_s3_bucket.press_kit.arn,
-          "${aws_s3_bucket.press_kit.arn}/*",
+          aws_s3_bucket.invoice_inbox.arn,
+          "${aws_s3_bucket.invoice_inbox.arn}/*",
         ]
       },
       {

@@ -1,12 +1,12 @@
-# Press Release Drafting Assistant
+# AP Invoice Triage + Coding Copilot
 
-AI-powered Press Release Drafting Assistant with a WebSocket chat frontend, Lambda-backed chat (LangGraph), DynamoDB and S3 datasources. The agent turns rough drafts and key topics into polished, publication-ready press releases using internal facts and approved assets.
+24/7 Agentic AP Assistant: Extract → 3-Way Match → GL Coding → Artifact Generation. LangGraph-based workflow with WebSocket chat frontend, Lambda, DynamoDB and S3.
 
 ## What's included
 
-- **Terraform**: VPC (default), ALB, ECS Fargate (frontend), Lambda (connect, disconnect, chat), API Gateway WebSocket, DynamoDB (sessions + knowledge), S3 (press-kit documents), IAM
-- **Lambda**: WebSocket connect/disconnect and a chat handler that runs the Press Release orchestrator (LangGraph) with tools for DynamoDB lookups and S3 press-kit documents
-- **Frontend**: FastAPI app with form-driven inputs, chat, and right-side file panel for generated press releases
+- **Terraform**: VPC, ALB, ECS Fargate (frontend), Lambda (connect, disconnect, chat), API Gateway WebSocket, DynamoDB (sessions + Vendors, POs, Receipts, InvoiceStatus), S3 (invoices/, policies/, outputs/), IAM
+- **Lambda**: WebSocket connect/disconnect and a chat handler that runs the AP Invoice orchestrator (LangGraph)
+- **Frontend**: FastAPI app with invoice path input, chat, and right-side panel for GL coding and ERP packet
 
 ## Prerequisites
 
@@ -36,47 +36,41 @@ See **[infra/ADAPT_BEFORE_DEPLOY.md](infra/ADAPT_BEFORE_DEPLOY.md)** for:
 
 2. **Seed data** (after first apply):
    ```bash
-   export DYNAMODB_KNOWLEDGE_TABLE=$(terraform -chdir=infra output -raw dynamodb_knowledge_table)
-   export S3_PRESS_KIT_BUCKET=$(terraform -chdir=infra output -raw s3_press_kit_bucket)
+   export S3_AP_BUCKET=$(terraform -chdir=infra output -raw s3_ap_bucket)
+   export DYNAMODB_VENDORS_TABLE=$(terraform -chdir=infra output -raw dynamodb_vendor_master_table)
+   export DYNAMODB_POS_TABLE=$(terraform -chdir=infra output -raw dynamodb_po_ledger_table)
+   export DYNAMODB_RECEIPTS_TABLE=$(terraform -chdir=infra output -raw dynamodb_receipts_table)
+   export DYNAMODB_INVOICE_STATUS_TABLE=$(terraform -chdir=infra output -raw dynamodb_invoice_status_table)
    export AWS_REGION=us-east-1
-   python scripts/seed_press_release.py
+   python scripts/seed_ap_invoice.py
    ```
 
 3. **Frontend image**
    - Build: `docker build --platform linux/amd64 -t agent-template-frontend .`
-   - Tag and push to the ECR repository output by Terraform; update ECS service (e.g. force new deployment).
+   - Tag and push to the ECR repository output by Terraform; update ECS service.
 
-4. Open the frontend at `{path_prefix}/app` and use the form to draft a press release.
+4. Open the frontend at `{path_prefix}/app` and run AP triage.
 
 ## Local development
 
 ```bash
 export OPENAI_API_KEY=sk-...
-export DYNAMODB_KNOWLEDGE_TABLE=your-table  # optional
-export S3_PRESS_KIT_BUCKET=your-bucket      # optional (after deploy)
+export S3_AP_BUCKET=your-bucket   # optional
+export ORCHESTRATOR_TYPE=ap       # or langraph
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open http://localhost:8000/app. For local dev the WebSocket connects to `/ws` on the same server.
+Open http://localhost:8000/app.
 
-## WebSocket URL
+## Orchestrator type
 
-When using the deployed frontend, set `AGENT_WS_URL` to the full WebSocket URL including the stage:
-
-```bash
-terraform -chdir=infra output websocket_api_url
-# Returns: wss://xxx.execute-api.region.amazonaws.com/$default
-```
+Set `ORCHESTRATOR_TYPE` to `ap` or `langraph` (default: `ap`). Both use the AP Invoice LangGraph workflow.
 
 ## Project layout
 
 - `app/` – FastAPI app (health, static, chat page, WebSocket for local dev)
-- `core/` – Config, agent manager, Press Release orchestrator (LangGraph), tools
-- `frontend/` – Templates and static (JS/CSS) for the Press Release UI
+- `core/` – Config, agent manager, state, AP Invoice orchestrator (LangGraph), tools
+- `frontend/` – Templates and static (JS/CSS) for AP triage UI
 - `lambda/` – WebSocket connect, disconnect, and chat handlers
 - `infra/` – Terraform (ALB, ECS, Lambda, API Gateway, DynamoDB, S3, IAM)
-- `scripts/` – Build Lambda zips, seed press release data
-
-## Further reading
-
-- **[PRESS_RELEASE_SETUP.md](PRESS_RELEASE_SETUP.md)** – Press release features, data sources, WebSocket contract
+- `scripts/` – Build Lambda zips, seed AP data

@@ -1,6 +1,6 @@
-# Press Release Agent (LangGraph)
+# AP Invoice Triage (LangGraph)
 
-This template runs the **Press Release Drafting Assistant** using **LangGraph** as the orchestrator. There are no Strands or Lambda layers; LangGraph and its dependencies are bundled in the chat Lambda zip.
+This template runs the **AP Invoice Triage + Coding Copilot** using **LangGraph** as the orchestrator. LangGraph and its dependencies are bundled in the chat Lambda zip.
 
 ## Quick start
 
@@ -8,6 +8,7 @@ This template runs the **Press Release Drafting Assistant** using **LangGraph** 
 
 ```bash
 export OPENAI_API_KEY=sk-...
+export ORCHESTRATOR_TYPE=ap   # or langraph
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -37,9 +38,7 @@ Open http://localhost:8000/app.
 
 ## Features
 
-- Press release drafting with form-driven inputs (rough draft, key topics, tone)
-- DynamoDB tools: company boilerplate, product facts, quotes, partner info, metrics
-- S3 tools: press-kit documents, save generated press releases
-- Streaming responses and right-side file panel with download
-
-See **[PRESS_RELEASE_SETUP.md](PRESS_RELEASE_SETUP.md)** for full details.
+- AP triage: Extract → 3-Way Match → GL Coding → Artifact Generation
+- DynamoDB: Vendors, POs, Receipts, InvoiceStatus
+- S3: invoices/, policies/, outputs/
+- LangGraph workflow export: `graph = workflow.compile()` for LangGraph Studio

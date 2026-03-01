@@ -49,10 +49,13 @@ resource "aws_lambda_function" "chat" {
 
   environment {
     variables = {
-      DYNAMODB_SESSIONS_TABLE  = aws_dynamodb_table.sessions.name
-      DYNAMODB_KNOWLEDGE_TABLE = aws_dynamodb_table.knowledge.name
-      S3_PRESS_KIT_BUCKET      = aws_s3_bucket.press_kit.id
-      OPENAI_API_KEY_SECRET    = var.openai_api_key_secret_name
+      DYNAMODB_SESSIONS_TABLE        = aws_dynamodb_table.sessions.name
+      DYNAMODB_VENDORS_TABLE         = aws_dynamodb_table.vendor_master.name
+      DYNAMODB_POS_TABLE             = aws_dynamodb_table.po_ledger.name
+      DYNAMODB_RECEIPTS_TABLE        = aws_dynamodb_table.receipts.name
+      DYNAMODB_INVOICE_STATUS_TABLE  = aws_dynamodb_table.invoice_status.name
+      S3_AP_BUCKET                   = aws_s3_bucket.invoice_inbox.id
+      OPENAI_API_KEY_SECRET          = var.openai_api_key_secret_name
     }
   }
 

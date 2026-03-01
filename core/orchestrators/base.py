@@ -12,7 +12,10 @@ class OrchestratorResult:
     """Result from a single orchestrator turn."""
     content: str
     raw: Any = None
-    file_content: str | None = None  # When set (e.g. press release), display in file panel
+    file_content: str | None = None  # Raw ERP export for download
+    display_data: Any = None  # Structured data for right-panel display
+    reasoning_stages: list[dict] | None = None  # Agent reasoning steps for chat
+    confirmation_prompt: str | None = None  # Follow-up question for user
 
 
 class AgentOrchestrator(ABC):

@@ -3,67 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Press Release Drafting Assistant</title>
-    <link rel="stylesheet" href="{{ root_path }}/static/css/app.css?v=5">
+    <title>AP Invoice Triage + Coding Copilot</title>
+    <link rel="stylesheet" href="{{ root_path }}/static/css/app.css?v=11">
 </head>
 <body>
     <div class="app-layout">
         <div class="main-panel">
             <div class="header">
-                <h1>Press Release Drafting Assistant</h1>
-                <p>Turn your rough draft into a polished, publication-ready press release. Add key topics, select tone, and let the assistant enrich the draft with internal facts and approved assets.</p>
+                <h1>AP Invoice Triage + Coding Copilot</h1>
+                <p>24/7 Agentic AP Assistant: Extract → 3-Way Match → GL Coding → Artifact Generation.</p>
             </div>
 
             <div class="form-section">
-                <h2>Draft inputs</h2>
+                <h2>Triage inputs</h2>
                 <div class="form-row">
-                    <label for="rough-draft">Rough draft</label>
-                    <textarea id="rough-draft" rows="5" placeholder="Paste your rough draft here..."></textarea>
+                    <label for="invoice-file">Upload invoice (image or PDF)</label>
+                    <input type="file" id="invoice-file" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" />
+                </div>
+                <div class="form-row form-row-inline">
+                    <button type="button" id="sample-invoice-btn" class="secondary-btn">Use sample invoice</button>
                 </div>
                 <div class="form-row">
-                    <label for="key-topics">Key topics (must include)</label>
-                    <textarea id="key-topics" rows="2" placeholder="One topic per line, e.g.&#10;Product launch&#10;Partnership with Globex&#10;Q1 metrics"></textarea>
+                    <label for="file-path">Or use S3 path (if no upload)</label>
+                    <input type="text" id="file-path" placeholder="invoices/INV-2026-001.txt" value="invoices/INV-2026-001.txt" />
                 </div>
-                <div class="form-row">
-                    <label for="press-release-type">Press release type</label>
-                    <select id="press-release-type">
-                        <option value="product_launch">Product launch</option>
-                        <option value="partnership">Partnership</option>
-                        <option value="funding">Funding</option>
-                        <option value="award">Award</option>
-                        <option value="event">Event</option>
-                        <option value="executive_hire">Executive hire</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <label for="tone">Tone</label>
-                    <select id="tone">
-                        <option value="professional">Professional</option>
-                        <option value="conversational">Conversational</option>
-                        <option value="bold">Bold</option>
-                        <option value="formal">Formal</option>
-                    </select>
-                </div>
-                <details class="optional-constraints">
-                    <summary>Optional constraints</summary>
-                    <div class="form-row">
-                        <label for="audience">Target audience</label>
-                        <input type="text" id="audience" placeholder="e.g. enterprise IT buyers">
-                    </div>
-                    <div class="form-row">
-                        <label for="length">Target length</label>
-                        <input type="text" id="length" placeholder="e.g. 300 words">
-                    </div>
-                    <div class="form-row">
-                        <label for="cta">Call to action</label>
-                        <input type="text" id="cta" placeholder="e.g. Sign up for a demo">
-                    </div>
-                    <div class="form-row">
-                        <label for="exclusions">Exclude</label>
-                        <input type="text" id="exclusions" placeholder="Topics or phrases to avoid">
-                    </div>
-                </details>
-                <button type="button" id="draft-btn" class="primary-btn">Draft press release</button>
+                <button type="button" id="triage-btn" class="primary-btn">Run AP triage</button>
             </div>
 
             <div id="chat-section" class="chat-section">
@@ -71,7 +35,7 @@
                 <div id="chat-messages" class="chat-messages"></div>
                 <div id="status-area" class="status-area"></div>
                 <div class="input-area">
-                    <input type="text" id="user-input" placeholder="Iterate: e.g. Make it shorter, change tone to bold..." autocomplete="off" />
+                    <input type="text" id="user-input" placeholder="e.g. Use invoices/INV-002.txt" autocomplete="off" />
                     <button id="send-button" onclick="sendMessage()">Send</button>
                 </div>
             </div>
@@ -79,10 +43,18 @@
 
         <div class="file-panel">
             <div class="file-panel-header">
-                <h2>Generated press release</h2>
-                <button id="download-btn" class="secondary-btn" disabled title="Download as .md">Download</button>
+                <h2>Invoice & GL packet</h2>
+                <div class="file-panel-actions">
+                    <button id="erp-export-btn" class="secondary-btn" disabled title="Download ERP export (JSON)">ERP export</button>
+                    <button id="draft-email-btn" class="secondary-btn" disabled title="Draft email for approval">Draft email</button>
+                </div>
             </div>
-            <div id="file-preview" class="file-preview">No press release yet. Submit the form or use chat to generate one.</div>
+            <div id="invoice-preview" class="invoice-preview">
+                <p class="placeholder-text">Upload an invoice, use the sample, or run triage to see preview.</p>
+            </div>
+            <div id="file-preview" class="file-preview">
+                <p class="placeholder-text">Upload an invoice or run triage to see: extracted fields, PO match, receipt match, coding & routing with rationale.</p>
+            </div>
         </div>
     </div>
     <script>
@@ -90,6 +62,6 @@
         const ROOT_PATH = "{{ root_path }}" || "";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="{{ root_path }}/static/js/app.js?v=4"></script>
+    <script src="{{ root_path }}/static/js/app.js?v=11"></script>
 </body>
 </html>

@@ -1,0 +1,123 @@
+=============================================================================
+INFRASTRUCTURE OVERVIEW: AP Invoice Triage + Coding Copilot
+=============================================================================
+
+This document summarizes the infrastructure for the AP Invoice Triage + Coding 
+Copilot agent deployed on AWS.
+
+=============================================================================
+HIGH-LEVEL ARCHITECTURE
+=============================================================================
+
+┌─────────────────────┐         WebSocket         ┌──────────────────────────────────┐
+│  Frontend (ECS)     │ ◄──────────────────────►  │  API Gateway WebSocket API       │
+│  FastAPI + static   │   wss://...               │  Routes: $connect, $disconnect,   │
+│  Serves /app        │                           │         $default (chat)           │
+└─────────┬───────────┘                           └──────────────┬───────────────────┘
+          │                                                      │
+          │ (AGENT_WS_URL)                                       ▼
+          │                                          ┌────────────────────────────────┐
+          │                                          │  Lambda: connect, disconnect,   │
+          │                                          │  chat (LangGraph orchestrator)  │
+          │                                          └───────────┬────────────────────┘
+          │                                                      │
+          │                                                      ▼
+          │                                          ┌────────────────────────────────┐
+          │                                          │  DynamoDB (sessions, Vendors,  │
+          │                                          │  POs, Receipts, InvoiceStatus) │
+          │                                          │  S3 (invoices/, policies/,     │
+          │                                          │  outputs/)                     │
+          │                                          └────────────────────────────────┘
+
+
+=============================================================================
+1. COMPUTE & NETWORKING
+=============================================================================
+
+Component          | Technology        | Purpose
+-------------------|-------------------|--------------------------------------------------
+VPC                | Default AWS VPC   | Network isolation
+ECS Fargate        | 1 CPU, 2 GB RAM   | Hosts the FastAPI frontend container
+ALB                | HTTP (port 80)    | Load balances to ECS with path prefix (/agent)
+ECR                | Container reg.    | Stores the frontend Docker image
+
+
+=============================================================================
+2. LAMBDA FUNCTIONS
+=============================================================================
+
+Three Lambda functions power the WebSocket API:
+
+Function    | Route       | Purpose
+------------|-------------|----------------------------------------------------
+connect     | $connect    | Creates session in DynamoDB, maps connection_id
+disconnect  | $disconnect | Cleanup when client disconnects
+chat        | $default    | Main chat handler: runs AgentManager → LangGraph orchestrator
+
+The chat Lambda (512 MB, 300s timeout) fetches the OpenAI key from Secrets 
+Manager and reads from DynamoDB (sessions, Vendors, POs, Receipts) and S3 (AP bucket).
+
+
+=============================================================================
+3. API GATEWAY WEBSOCKET
+=============================================================================
+
+- Route selection expression: $request.body.action
+- $default route handles all non-connect/disconnect messages (chat)
+- Throttling: 100 req/s, burst 50
+
+
+=============================================================================
+4. DATA STORES
+=============================================================================
+
+Resource            | Type     | Purpose
+--------------------|----------|----------------------------------------------------
+Sessions table      | DynamoDB | Maps connection_id → session_id for WebSocket sessions
+vendor_master       | DynamoDB | AP: remit-to, payment terms, tax IDs, default GL/cost center
+po_ledger           | DynamoDB | AP: PO number, vendor, line items, amounts, cost center
+receipts            | DynamoDB | AP: received quantities (optional for 3-way match)
+invoice_status      | DynamoDB | AP: state machine + duplicate heuristics
+invoice_inbox       | S3       | AP prefixes: invoices/, policies/, outputs/
+
+
+=============================================================================
+5. APPLICATION STACK
+=============================================================================
+
+Layer         | Location              | Purpose
+--------------|-----------------------|----------------------------------------------------
+Frontend      | app/, frontend/       | FastAPI app, Jinja templates, JS/CSS for chat UI
+Agent core    | core/                 | AgentManager, config, state, tools
+Orchestrator  | core/orchestrators/   | LangGraph: ap_graph, ap_invoice_orchestrator
+Lambda        | lambda/               | connect, disconnect, chat handlers
+
+AP Graph (core/orchestrators/ap_graph.py): ingest -> validate_and_match -> assign_coding
+  -> [handle_exceptions | finalize_packet]. Export: graph = workflow.compile() for LangGraph Studio.
+
+
+=============================================================================
+6. DEPLOYMENT FLOW
+=============================================================================
+
+1. Terraform (infra/) provisions all AWS resources
+2. Lambda zip files built via scripts/build_lambda_connect.py,
+   build_lambda_disconnect.py, build_lambda_chat.py
+3. Seed data: python scripts/seed_ap_invoice.py
+4. Docker image built and pushed to ECR; ECS runs the frontend container
+
+ORCHESTRATOR_TYPE: ap or langraph (default: ap).
+
+
+=============================================================================
+7. CONFIGURATION
+=============================================================================
+
+Terraform variables:
+- project_name (e.g. mk-pr-agent-dev) – resource naming, collision avoidance
+- environment – dev or prod
+- service_path – path prefix (default /agent)
+- openai_api_key_secret_name – Secrets Manager secret for OpenAI API key
+
+Remote Terraform state uses S3 backend with workspace key prefix 
+"empty-agent-template" and DynamoDB locks for state locking.

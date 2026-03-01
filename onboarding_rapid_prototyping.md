@@ -34,7 +34,7 @@ This document is the **standard onboarding walkthrough** for projects where we r
 - Drop-Ship Vendor Item Setup Copilot
 - Customer Service for Logistics Agent
 - Returns_Classifier_Agent
-- Press Release Drafting Assistant
+- AP Invoice Triage + Coding Copilot
 
 ---
 

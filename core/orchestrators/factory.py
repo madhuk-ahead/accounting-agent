@@ -1,4 +1,4 @@
-"""Factory for the Press Release orchestrator (LangGraph-based)."""
+"""Factory for AP Invoice Triage orchestrator (LangGraph-based)."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 
 def get_orchestrator(settings: Settings | None = None, session_id: str | None = None) -> "AgentOrchestrator":
-    """Return the Press Release orchestrator (LangGraph with DynamoDB and S3 tools)."""
+    """Return AP Invoice orchestrator. ORCHESTRATOR_TYPE: langraph or ap (default: ap)."""
     from core.config import get_settings
-    from .press_release_orchestrator import PressReleaseOrchestrator
+    from .ap_invoice_orchestrator import APInvoiceOrchestrator
     s = settings or get_settings()
-    return PressReleaseOrchestrator(settings=s, session_id=session_id)
+    return APInvoiceOrchestrator(settings=s, session_id=session_id)

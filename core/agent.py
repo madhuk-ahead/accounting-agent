@@ -1,4 +1,4 @@
-"""Agent manager: runs the Press Release orchestrator for chat turns."""
+"""Agent manager: runs the AP Invoice Triage orchestrator for chat turns."""
 
 from __future__ import annotations
 
@@ -14,7 +14,10 @@ class RunResult:
     message: str
     buttons: list[Any]
     conversation_id: str
-    file_content: str | None = None  # For press release: content to show in file panel
+    file_content: str | None = None  # Raw ERP export for download
+    display_data: Any = None  # Structured data for right-panel display
+    reasoning_stages: list[dict] | None = None  # Agent reasoning steps for chat
+    confirmation_prompt: str | None = None  # Follow-up question for user
 
 
 _agent_manager: "AgentManager | None" = None
@@ -32,7 +35,7 @@ def get_agent_manager(settings: Settings | None = None) -> "AgentManager":
 
 
 class AgentManager:
-    """Runs the Press Release orchestrator for each chat turn."""
+    """Runs the AP Invoice Triage orchestrator for each chat turn."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -62,6 +65,9 @@ class AgentManager:
             buttons=[],
             conversation_id=conversation_id,
             file_content=getattr(result, "file_content", None),
+            display_data=getattr(result, "display_data", None),
+            reasoning_stages=getattr(result, "reasoning_stages", None),
+            confirmation_prompt=getattr(result, "confirmation_prompt", None),
         )
 
     def _parse_transcript(self, transcript: str) -> list[dict[str, str]]:
