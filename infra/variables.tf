@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name for resource naming. Change before deploy to avoid collisions. Keep short (e.g. agent-tmpl): ALB and target group names have a 32-character limit."
   type        = string
-  default     = "mk-pr-agent-dev"
+  default     = "ap-agent-dev"
 }
 
 variable "environment" {
