@@ -87,6 +87,9 @@ def validate_and_match_node(state: APInvoiceState) -> dict:
     receipt = erp.get("receipt") or {}
 
     po_found = bool(po)
+    # No PO → no meaningful receipt match; ignore any mock/fallback receipt data
+    if not po_found:
+        receipt = {}
     po_amount = po.get("amount") or 0
     amount_match = abs(float(invoice_amount) - float(po_amount)) < 0.01 if po_found else False
     line_items_match = True  # Simplified for demo

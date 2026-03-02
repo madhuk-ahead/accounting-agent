@@ -341,13 +341,28 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
     Returns vendor defaults (GL, payment terms), PO details (amount, line items),
     and receipt status for 3-way matching.
     """
+    # reload settings on each call in case the process started before the
+    # environment vars were exported (uvicorn --reload spawns workers that may
+    # cache a stale Settings instance).  the cache is small so this is cheap.
+    try:
+        get_settings.cache_clear()
+    except AttributeError:
+        pass
     settings = get_settings()
+
     dynamodb = _get_dynamodb_resource(settings)
     region = settings.aws_region or os.getenv("AWS_REGION", "us-east-1")
 
+    # some callers (tests, lambda bootstrapping) may set table names on the
+    # settings object directly, but we always want the *current* value from the
+    # environment as a fallback.  reading os.getenv() here ensures we don't
+    # accidentally continue using an empty string if env vars were populated
+    # after the Settings instance was created.
     vendors_table = getattr(settings, "dynamodb_vendors_table", None) or os.getenv("DYNAMODB_VENDORS_TABLE", "")
     pos_table = getattr(settings, "dynamodb_pos_table", None) or os.getenv("DYNAMODB_POS_TABLE", "")
-    receipts_table = getattr(settings, "dynamodb_receipts_table", None) or os.getenv("DYNAMODB_RECEIPTS_TABLE", "")
+    receipts_table = os.getenv("DYNAMODB_RECEIPTS_TABLE", "") or getattr(settings, "dynamodb_receipts_table", "")
+
+    logger.info(f"tables: vendors={vendors_table!r} pos={pos_table!r} receipts={receipts_table!r} region={region!r}")
 
     result: dict[str, Any] = {"vendor": None, "po": None, "receipt": None}
 
@@ -385,10 +400,14 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
             result["receipt"] = items[0] if items else {}
         except Exception as e:
             result["receipt_error"] = str(e)
-    else:
+    elif result.get("po"):
+        # PO found but receipts_table not configured → use mock receipt
         if pos_table:
             logger.warning("MOCK DATA: DYNAMODB_RECEIPTS_TABLE not set. Using mock receipt.")
         result["receipt"] = _mock_receipt(po_id)
+    else:
+        # No PO found → no receipt to match; do not return mock receipt
+        result["receipt"] = {}
 
     return result
 
