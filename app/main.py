@@ -1,8 +1,19 @@
 """FastAPI app: static frontend and WebSocket chat page."""
 
 import json
+import logging
 import os
 import uuid
+
+# Load .env for local development (OPENAI_API_KEY, S3_AP_BUCKET, etc.)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# Configure logging so MOCK DATA warnings from tools are visible
+logging.basicConfig(level=logging.INFO, format="%(name)s: %(levelname)s: %(message)s")
 
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,6 +64,8 @@ def _create_sub_app(settings, templates, root_path: str) -> FastAPI:
                     form_data["last_display_data"] = payload["last_display_data"]
                 if payload.get("last_file_content"):
                     form_data["last_file_content"] = payload["last_file_content"]
+                if payload.get("invoice_pages_base64"):
+                    form_data["invoice_pages_base64"] = payload["invoice_pages_base64"]
                 if not conversation and user_text:
                     conversation = f"USER: {user_text}"
 

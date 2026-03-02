@@ -6,8 +6,9 @@ let currentFileContent = "";
 let currentDisplayData = null;
 let uploadedInvoiceBase64 = null;
 let uploadedInvoiceType = null;
+let uploadedInvoicePagesBase64 = null;
 let uploadedInvoicePreviewUrl = null;
-let sampleInvoiceBase64 = null;
+let lastSelectedPdfFile = null;
 
 function initWebSocket() {
     if (!WS_URL) {
@@ -70,49 +71,81 @@ function initWebSocket() {
     ws.onclose = () => appendMessage("SYSTEM", "Connection closed. Refresh to reconnect.");
 }
 
-const SAMPLE_INVOICE_SRC = ((typeof ROOT_PATH !== "undefined" ? ROOT_PATH : "") || "").replace(/\/$/, "") + "/static/sample_invoice.svg";
-
-function useSampleInvoice() {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = function () {
-        try {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0);
-            canvas.toBlob(function (blob) {
-                if (!blob) return;
-                const reader = new FileReader();
-                reader.onload = function () {
-                    const dataUrl = reader.result;
-                    if (typeof dataUrl === "string" && dataUrl.startsWith("data:")) {
-                        const parts = dataUrl.split(",");
-                        if (parts.length === 2) {
-                            sampleInvoiceBase64 = parts[1];
-                            uploadedInvoiceBase64 = parts[1];
-                            uploadedInvoiceType = "image/png";
-                            if (uploadedInvoicePreviewUrl) URL.revokeObjectURL(uploadedInvoicePreviewUrl);
-                            uploadedInvoicePreviewUrl = null;
-                            const el = document.getElementById("invoice-preview");
-                            el.innerHTML = '<div class="invoice-with-overlay"><img src="' + dataUrl + '" alt="Sample invoice" class="invoice-image" /><div id="extraction-overlay" class="extraction-overlay"></div></div>';
-                            el.classList.add("has-content");
-                            el.querySelector(".placeholder-text")?.remove();
-                        }
-                    }
-                };
-                reader.readAsDataURL(blob);
-            }, "image/png");
-        } catch (e) {
-            console.error("Failed to convert sample invoice:", e);
+function convertPdfToImageForExtraction(file) {
+    return new Promise(function (resolve, reject) {
+        if (typeof pdfjsLib === "undefined") {
+            uploadedInvoiceBase64 = null;
+            uploadedInvoiceType = null;
+            uploadedInvoicePagesBase64 = null;
+            console.warn("PDF.js not loaded; PDF extraction may fail.");
+            resolve(false);
+            return;
         }
-    };
-    img.onerror = function () {
-        const el = document.getElementById("invoice-preview");
-        el.innerHTML = '<p class="placeholder-text">Could not load sample invoice. Try uploading an image.</p>';
-    };
-    img.src = SAMPLE_INVOICE_SRC;
+        const fileReader = new FileReader();
+        fileReader.onload = function () {
+            const typedArray = new Uint8Array(fileReader.result);
+            const loadTask = pdfjsLib.getDocument({ data: typedArray });
+            (loadTask.promise || loadTask).then(function (pdf) {
+                const numPages = pdf.numPages;
+                const pagePromises = [];
+                for (let i = 1; i <= numPages; i++) {
+                    pagePromises.push(pdf.getPage(i));
+                }
+                return Promise.all(pagePromises);
+            }).then(function (pages) {
+                const renderPromises = pages.map(function (page) {
+                    const scale = 2;
+                    const viewport = page.getViewport({ scale: scale });
+                    const canvas = document.createElement("canvas");
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    const ctx = canvas.getContext("2d");
+                    const renderTask = page.render({ canvasContext: ctx, viewport: viewport });
+                    const renderPromise = renderTask.promise || renderTask;
+                    return renderPromise.then(function () {
+                        return new Promise(function (res) {
+                            canvas.toBlob(function (blob) {
+                                if (!blob) { res(null); return; }
+                                const r = new FileReader();
+                                r.onload = function () {
+                                    const dataUrl = r.result;
+                                    if (typeof dataUrl === "string" && dataUrl.startsWith("data:")) {
+                                        const p = dataUrl.split(",");
+                                        res(p.length === 2 ? p[1] : null);
+                                    } else { res(null); }
+                                };
+                                r.readAsDataURL(blob);
+                            }, "image/png");
+                        });
+                    });
+                });
+                return Promise.all(renderPromises);
+            }).then(function (base64Pages) {
+                const valid = (base64Pages || []).filter(Boolean);
+                if (valid.length === 0) {
+                    resolve(false);
+                    return;
+                }
+                uploadedInvoicePagesBase64 = valid;
+                if (valid.length === 1) {
+                    uploadedInvoiceBase64 = valid[0];
+                    uploadedInvoiceType = "image/png";
+                } else {
+                    uploadedInvoiceBase64 = null;
+                    uploadedInvoiceType = null;
+                }
+                resolve(true);
+            }).catch(function (err) {
+                console.error("PDF to image conversion failed:", err);
+                uploadedInvoiceBase64 = null;
+                uploadedInvoiceType = null;
+                uploadedInvoicePagesBase64 = null;
+                reject(err);
+            });
+        };
+        fileReader.onerror = function () { reject(new Error("Failed to read PDF file")); };
+        fileReader.readAsArrayBuffer(file);
+    });
 }
 
 function updateExtractionOverlay(d) {
@@ -138,32 +171,39 @@ function handleInvoiceUpload(event) {
     if (uploadedInvoicePreviewUrl) URL.revokeObjectURL(uploadedInvoicePreviewUrl);
     uploadedInvoiceBase64 = null;
     uploadedInvoiceType = null;
+    uploadedInvoicePagesBase64 = null;
     uploadedInvoicePreviewUrl = null;
+    lastSelectedPdfFile = null;
 
     const reader = new FileReader();
     reader.onload = () => {
         const result = reader.result;
         if (result && typeof result === "string" && result.startsWith("data:")) {
             const parts = result.split(",");
-            if (parts.length === 2) {
+            if (parts.length === 2 && file.type !== "application/pdf") {
                 uploadedInvoiceBase64 = parts[1];
                 const mime = parts[0].match(/data:([^;]+)/);
                 uploadedInvoiceType = mime ? mime[1] : file.type;
             }
         }
     };
-    reader.readAsDataURL(file);
+    if (file.type !== "application/pdf") {
+        reader.readAsDataURL(file);
+    }
 
-    sampleInvoiceBase64 = null;
     if (file.type.startsWith("image/")) {
         uploadedInvoicePreviewUrl = URL.createObjectURL(file);
         const el = document.getElementById("invoice-preview");
         el.innerHTML = '<div class="invoice-with-overlay"><img src="' + uploadedInvoicePreviewUrl + '" alt="Uploaded invoice" class="invoice-image" /><div id="extraction-overlay" class="extraction-overlay"></div></div>';
         el.classList.add("has-content");
     } else if (file.type === "application/pdf") {
+        lastSelectedPdfFile = file;
+        uploadedInvoicePreviewUrl = URL.createObjectURL(file);
         const el = document.getElementById("invoice-preview");
         el.innerHTML = '<div class="invoice-with-overlay"><embed src="' + uploadedInvoicePreviewUrl + '" type="application/pdf" class="invoice-pdf" /><div id="extraction-overlay" class="extraction-overlay"></div></div>';
         el.classList.add("has-content");
+    } else {
+        reader.readAsDataURL(file);
     }
 }
 
@@ -172,14 +212,40 @@ function getFormData() {
     const data = {
         file_path: filePath || "invoices/INV-2026-001.txt",
     };
-    if (uploadedInvoiceBase64 && uploadedInvoiceType) {
+    if (uploadedInvoicePagesBase64 && uploadedInvoicePagesBase64.length > 0) {
+        data.invoice_pages_base64 = uploadedInvoicePagesBase64;
+    } else if (uploadedInvoiceBase64 && uploadedInvoiceType) {
         data.invoice_file_base64 = uploadedInvoiceBase64;
         data.invoice_file_type = uploadedInvoiceType;
     }
     return data;
 }
 
-function runTriage() {
+async function runTriage() {
+    const triageBtn = document.getElementById("triage-btn");
+    const origLabel = triageBtn ? triageBtn.textContent : "";
+    if (lastSelectedPdfFile && !uploadedInvoicePagesBase64 && !uploadedInvoiceBase64) {
+        if (triageBtn) {
+            triageBtn.disabled = true;
+            triageBtn.textContent = "Converting PDF...";
+        }
+        try {
+            const ok = await convertPdfToImageForExtraction(lastSelectedPdfFile);
+            if (!ok) {
+                appendMessage("SYSTEM", "PDF conversion failed. Ensure PDF.js is loaded.");
+                if (triageBtn) { triageBtn.disabled = false; triageBtn.textContent = origLabel; }
+                return;
+            }
+        } catch (e) {
+            appendMessage("SYSTEM", "PDF conversion failed. " + (e && e.message ? e.message : ""));
+            if (triageBtn) { triageBtn.disabled = false; triageBtn.textContent = origLabel; }
+            return;
+        }
+        if (triageBtn) {
+            triageBtn.disabled = false;
+            triageBtn.textContent = origLabel;
+        }
+    }
     const formData = getFormData();
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         appendMessage("SYSTEM", "Not connected. Refresh the page to reconnect.");
@@ -188,7 +254,9 @@ function runTriage() {
     }
     const statusEl = document.getElementById("status-area");
     if (statusEl) statusEl.textContent = "Running AP triage...";
-    const text = formData.invoice_file_base64
+    const hasUpload = (formData.invoice_pages_base64 && formData.invoice_pages_base64.length > 0) ||
+        (formData.invoice_file_base64 && formData.invoice_file_type);
+    const text = hasUpload
         ? "Run AP triage for uploaded invoice"
         : "Run AP triage for " + formData.file_path;
     transcript += "\nUSER: " + text;
@@ -348,7 +416,6 @@ function draftEmailForApproval() {
 document.addEventListener("DOMContentLoaded", () => {
     initWebSocket();
     document.getElementById("invoice-file")?.addEventListener("change", handleInvoiceUpload);
-    document.getElementById("sample-invoice-btn")?.addEventListener("click", useSampleInvoice);
     document.getElementById("triage-btn")?.addEventListener("click", runTriage);
     document.getElementById("erp-export-btn")?.addEventListener("click", downloadPacket);
     document.getElementById("draft-email-btn")?.addEventListener("click", draftEmailForApproval);

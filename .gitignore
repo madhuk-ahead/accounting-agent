@@ -25,3 +25,6 @@ strands-ahead-package/strands_ahead-*.whl
 .vscode/
 *.swp
 *~
+
+# Cache
+*.DS_Store

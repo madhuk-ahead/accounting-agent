@@ -1,4 +1,5 @@
 # Frontend and app (FastAPI, static serving)
+python-dotenv>=1.0.0
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 gunicorn>=21.2.0
@@ -6,6 +7,11 @@ jinja2>=3.1.0
 python-multipart>=0.0.6
 pydantic>=2.0.0
 boto3>=1.28.0
+
+# Sample invoice generation (scripts/generate_sample_invoice.py, scripts/generate_sample_invoice_jpg.py)
+reportlab>=4.0.0
+cairosvg>=2.7.0
+Pillow>=10.0.0
 
 # Optional: LangGraph orchestrator (set ORCHESTRATOR_TYPE=langgraph)
 langgraph>=0.2.0

@@ -18,15 +18,15 @@ class Settings:
         openai_model: str = "gpt-4o",
         aws_region: str = "us-east-1",
         dynamodb_sessions_table: str = "",
-        orchestrator_type: str = "ap",
+        orchestrator_type: str = "langraph",
         s3_ap_bucket: str = "",
     ):
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY", "")
         self.openai_model = os.getenv("OPENAI_MODEL", openai_model)
         self.aws_region = os.getenv("AWS_REGION", aws_region)
         self.dynamodb_sessions_table = dynamodb_sessions_table or os.getenv("DYNAMODB_SESSIONS_TABLE", "")
-        orch = (orchestrator_type or os.getenv("ORCHESTRATOR_TYPE", "ap")).lower()
-        self.orchestrator_type = orch if orch in ("langraph", "ap") else "ap"
+        orch = (os.getenv("ORCHESTRATOR_TYPE") or orchestrator_type or "langraph").lower()
+        self.orchestrator_type = orch if orch in ("langraph", "strands") else "langraph"
         self.s3_ap_bucket = s3_ap_bucket or os.getenv("S3_AP_BUCKET", "")
         self.dynamodb_vendors_table = os.getenv("DYNAMODB_VENDORS_TABLE", "")
         self.dynamodb_pos_table = os.getenv("DYNAMODB_POS_TABLE", "")

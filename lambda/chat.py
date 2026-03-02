@@ -117,6 +117,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             form_data["last_display_data"] = payload["last_display_data"]
         if payload.get("last_file_content"):
             form_data["last_file_content"] = payload["last_file_content"]
+        if payload.get("invoice_pages_base64"):
+            form_data["invoice_pages_base64"] = payload["invoice_pages_base64"]
         if not conversation and user_text:
             conversation = f"USER: {user_text}"
 

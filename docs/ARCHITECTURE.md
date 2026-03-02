@@ -229,7 +229,7 @@ flowchart TB
 
 | Variable | Purpose |
 |----------|---------|
-| `ORCHESTRATOR_TYPE` | `ap` or `langraph` (both use LangGraph workflow) |
+| `ORCHESTRATOR_TYPE` | `langraph` (default) or `strands`. `langraph` = full AP workflow; `strands` = Strands Agent with AP tools |
 | `AGENT_WS_URL` | WebSocket URL for frontend (prod: API Gateway; local: ws://localhost:8000/ws) |
 | `S3_AP_BUCKET` | S3 bucket for invoices/, policies/, outputs/ |
 | `OPENAI_API_KEY` | From env (local) or Secrets Manager (Lambda) |

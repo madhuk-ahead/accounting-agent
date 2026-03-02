@@ -106,7 +106,7 @@ AP Graph (core/orchestrators/ap_graph.py): ingest -> validate_and_match -> assig
 3. Seed data: python scripts/seed_ap_invoice.py
 4. Docker image built and pushed to ECR; ECS runs the frontend container
 
-ORCHESTRATOR_TYPE: ap or langraph (default: ap).
+ORCHESTRATOR_TYPE: langraph (default) or strands.
 
 
 =============================================================================

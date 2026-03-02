@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from decimal import Decimal
 from datetime import datetime, timezone
 from typing import Any
 
 from core.config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _get_dynamodb_resource(settings: Settings | None = None):
@@ -51,14 +54,16 @@ def extract_invoice(
     file_path: str = "",
     image_base64: str | None = None,
     image_media_type: str | None = None,
+    image_pages_base64: list[str] | None = None,
     use_llm: bool = True,
 ) -> dict[str, Any]:
     """Extract invoice fields from an invoice document or image using LLM parsing.
 
     Args:
         file_path: S3 key (e.g. invoices/INV-2026-001.pdf) or local path.
-        image_base64: Base64-encoded image/PDF content (when user uploads).
-        image_media_type: e.g. image/png, image/jpeg, application/pdf.
+        image_base64: Base64-encoded image (single-page upload).
+        image_media_type: e.g. image/png, image/jpeg.
+        image_pages_base64: List of base64-encoded PNGs (multi-page PDF).
         use_llm: If True, use LLM to parse; else return mock for demo.
 
     Returns:
@@ -69,7 +74,13 @@ def extract_invoice(
     bucket = _get_bucket(settings)
     source = file_path or "uploaded"
 
-    # Image/PDF upload: use vision model
+    # Multi-page PDF: use vision model with all pages
+    if image_pages_base64 and len(image_pages_base64) > 0:
+        if use_llm:
+            return _extract_from_images(image_pages_base64, source)
+        return _parse_mock_invoice(_mock_invoice_content(source), source)
+
+    # Single image/PDF upload: use vision model
     if image_base64 and image_media_type:
         if use_llm:
             return _extract_from_image(image_base64, image_media_type, source)
@@ -87,6 +98,10 @@ def extract_invoice(
 
     # For local or missing file, use mock content
     if not raw_text:
+        if not bucket:
+            logger.warning("MOCK DATA: S3_AP_BUCKET not set. Using mock invoice content. Set S3_AP_BUCKET and upload invoices to S3 for real extraction.")
+        else:
+            logger.warning("MOCK DATA: Invoice file not found in S3 (%s). Using mock content. Run seed_ap_invoice.py to upload sample invoices.", file_path)
         raw_text = _mock_invoice_content(file_path or source)
 
     if use_llm and raw_text:
@@ -140,10 +155,12 @@ def _extract_with_llm(raw_text: str, file_path: str) -> dict[str, Any]:
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_core.output_parsers import JsonOutputParser
     except ImportError:
+        logger.warning("MOCK DATA: langchain_openai not installed. Using mock parser. pip install langchain-openai langchain-core")
         return _parse_mock_invoice(raw_text, file_path)
 
     api_key = get_settings().openai_api_key or os.getenv("OPENAI_API_KEY")
     if not api_key:
+        logger.warning("MOCK DATA: OPENAI_API_KEY not set. Using mock parser. Set OPENAI_API_KEY for real LLM extraction.")
         return _parse_mock_invoice(raw_text, file_path)
 
     prompt = ChatPromptTemplate.from_messages([
@@ -160,6 +177,52 @@ def _extract_with_llm(raw_text: str, file_path: str) -> dict[str, Any]:
     return parsed
 
 
+def _extract_from_images(image_pages_base64: list[str], source: str) -> dict[str, Any]:
+    """Use vision model to extract invoice fields from multiple page images (multi-page PDF)."""
+    try:
+        from langchain_openai import ChatOpenAI
+        from langchain_core.messages import HumanMessage
+        from langchain_core.output_parsers import JsonOutputParser
+    except ImportError:
+        logger.warning("MOCK DATA: langchain_openai not installed. Using mock. pip install langchain-openai langchain-core")
+        return _parse_mock_invoice(_mock_invoice_content(source), source)
+
+    api_key = get_settings().openai_api_key or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.warning("MOCK DATA: OPENAI_API_KEY not set. Using mock for image extraction. Set OPENAI_API_KEY for real LLM extraction.")
+        return _parse_mock_invoice(_mock_invoice_content(source), source)
+
+    content: list[dict[str, Any]] = [
+        {
+            "type": "text",
+            "text": f"Extract invoice fields from this multi-page invoice document. Combine information from all pages. {INVOICE_EXTRACTION_SCHEMA}",
+        },
+    ]
+    for b64 in image_pages_base64:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{b64}"},
+        })
+
+    msg = HumanMessage(content=content)
+    model = ChatOpenAI(model="gpt-4o", api_key=api_key, temperature=0)
+    try:
+        response = model.invoke([msg])
+        text = response.content if hasattr(response, "content") else str(response)
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0].strip()
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0].strip()
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError) as e:
+        return {"error": f"Could not parse extraction: {e}", "_source": source}
+
+    parsed.setdefault("amount", parsed.get("total"))
+    parsed["_source"] = source
+    parsed["_extracted_at"] = datetime.now(tz=timezone.utc).isoformat()
+    return parsed
+
+
 def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict[str, Any]:
     """Use vision model to extract invoice fields from image or PDF."""
     try:
@@ -167,10 +230,12 @@ def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict
         from langchain_core.messages import HumanMessage
         from langchain_core.output_parsers import JsonOutputParser
     except ImportError:
+        logger.warning("MOCK DATA: langchain_openai not installed. Using mock. pip install langchain-openai langchain-core")
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
     api_key = get_settings().openai_api_key or os.getenv("OPENAI_API_KEY")
     if not api_key:
+        logger.warning("MOCK DATA: OPENAI_API_KEY not set. Using mock for image extraction. Set OPENAI_API_KEY for real LLM extraction.")
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
     # Build image message for vision model
@@ -295,6 +360,7 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
         except Exception as e:
             result["vendor_error"] = str(e)
     else:
+        logger.warning("MOCK DATA: DYNAMODB_VENDORS_TABLE not set. Using mock vendor/PO/receipt. Set env vars and run seed_ap_invoice.py for real data.")
         result["vendor"] = _mock_vendor(vendor_id)
 
     if pos_table:
@@ -306,6 +372,8 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
         except Exception as e:
             result["po_error"] = str(e)
     else:
+        if vendors_table:
+            logger.warning("MOCK DATA: DYNAMODB_POS_TABLE not set. Using mock PO.")
         result["po"] = _mock_po(po_id)
 
     if receipts_table and result.get("po"):
@@ -318,6 +386,8 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
         except Exception as e:
             result["receipt_error"] = str(e)
     else:
+        if pos_table:
+            logger.warning("MOCK DATA: DYNAMODB_RECEIPTS_TABLE not set. Using mock receipt.")
         result["receipt"] = _mock_receipt(po_id)
 
     return result

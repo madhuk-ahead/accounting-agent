@@ -58,11 +58,14 @@ class APInvoiceOrchestrator(AgentOrchestrator):
         invoice_hint = form_data.get("invoice_data") or {}
         invoice_file_base64 = form_data.get("invoice_file_base64")
         invoice_file_type = form_data.get("invoice_file_type")
+        invoice_pages_base64 = form_data.get("invoice_pages_base64")
 
         invoice_data = dict(invoice_hint) if invoice_hint else {}
         if "_source" not in invoice_data:
             invoice_data["_source"] = file_path
-        if invoice_file_base64:
+        if invoice_pages_base64 and isinstance(invoice_pages_base64, list) and len(invoice_pages_base64) > 0:
+            invoice_data["_image_pages_base64"] = invoice_pages_base64
+        elif invoice_file_base64:
             invoice_data["_image_base64"] = invoice_file_base64
         if invoice_file_type:
             invoice_data["_image_media_type"] = invoice_file_type

@@ -32,10 +32,12 @@ def ingest_node(state: APInvoiceState) -> dict:
     file_path = inv.get("_source") or "invoices/INV-2026-001.txt"
     image_base64 = inv.get("_image_base64")
     image_media_type = inv.get("_image_media_type")
+    image_pages_base64 = inv.get("_image_pages_base64")
     extracted = ap_invoice_tools.extract_invoice(
         file_path=file_path,
         image_base64=image_base64,
         image_media_type=image_media_type,
+        image_pages_base64=image_pages_base64,
     )
     if "error" in extracted:
         return {

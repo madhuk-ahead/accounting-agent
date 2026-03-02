@@ -20,9 +20,6 @@
                     <label for="invoice-file">Upload invoice (image or PDF)</label>
                     <input type="file" id="invoice-file" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" />
                 </div>
-                <div class="form-row form-row-inline">
-                    <button type="button" id="sample-invoice-btn" class="secondary-btn">Use sample invoice</button>
-                </div>
                 <div class="form-row">
                     <label for="file-path">Or use S3 path (if no upload)</label>
                     <input type="text" id="file-path" placeholder="invoices/INV-2026-001.txt" value="invoices/INV-2026-001.txt" />
@@ -62,6 +59,7 @@
         const ROOT_PATH = "{{ root_path }}" || "";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="{{ root_path }}/static/js/app.js?v=11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="{{ root_path }}/static/js/app.js?v=12"></script>
 </body>
 </html>

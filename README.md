@@ -53,18 +53,28 @@ See **[infra/ADAPT_BEFORE_DEPLOY.md](infra/ADAPT_BEFORE_DEPLOY.md)** for:
 
 ## Local development
 
+For **real agent behavior** (LLM extraction, live PO/receipt matching), set these env vars. Otherwise the agent uses mocked data.
+
 ```bash
-export OPENAI_API_KEY=sk-...
-export S3_AP_BUCKET=your-bucket   # optional
-export ORCHESTRATOR_TYPE=ap       # or langraph
+# Copy .env.example to .env and fill in values
+cp .env.example .env
+
+# Or export manually:
+export OPENAI_API_KEY=sk-...           # Required for real invoice extraction
+export S3_AP_BUCKET=your-bucket        # Required for S3 path (invoices/INV-*.txt)
+export DYNAMODB_VENDORS_TABLE=...      # Required for real PO/receipt matching
+export DYNAMODB_POS_TABLE=...
+export DYNAMODB_RECEIPTS_TABLE=...
+export DYNAMODB_INVOICE_STATUS_TABLE=...
+
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open http://localhost:8000/app.
+Open http://localhost:8000/app. If mock data is used, you'll see `MOCK DATA:` warnings in the console.
 
 ## Orchestrator type
 
-Set `ORCHESTRATOR_TYPE` to `ap` or `langraph` (default: `ap`). Both use the AP Invoice LangGraph workflow.
+Set `ORCHESTRATOR_TYPE` to `langraph` (default) or `strands`. `langraph` uses the full AP Invoice LangGraph workflow; `strands` uses a Strands Agent with AP tools.
 
 ## Project layout
 

@@ -8,7 +8,7 @@ This template runs the **AP Invoice Triage + Coding Copilot** using **LangGraph*
 
 ```bash
 export OPENAI_API_KEY=sk-...
-export ORCHESTRATOR_TYPE=ap   # or langraph
+export ORCHESTRATOR_TYPE=langraph
 uvicorn app.main:app --reload --port 8000
 ```
 
