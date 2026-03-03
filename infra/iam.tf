@@ -183,6 +183,18 @@ resource "aws_iam_role_policy" "ecs_task" {
           "${aws_dynamodb_table.sessions.arn}/index/*",
         ]
       },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          aws_s3_bucket.invoice_inbox.arn,
+          "${aws_s3_bucket.invoice_inbox.arn}/*",
+        ]
+      },
     ]
   })
 }

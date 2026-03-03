@@ -46,6 +46,36 @@ def _get_bucket(settings: Settings | None = None) -> str:
     return getattr(settings, "s3_ap_bucket", None) or os.getenv("S3_AP_BUCKET", "")
 
 
+def _resize_image_for_vision(image_b64: str | bytes, max_dim: int = 1024) -> str:
+    """Resize image to stay within vision model context limits. Returns base64 PNG."""
+    import base64
+    try:
+        from PIL import Image
+        import io
+    except ImportError:
+        return image_b64 if isinstance(image_b64, str) else base64.b64encode(image_b64).decode("ascii")
+    try:
+        if isinstance(image_b64, str):
+            raw = base64.b64decode(image_b64)
+        else:
+            raw = image_b64
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        w, h = img.size
+        if w <= max_dim and h <= max_dim:
+            buf = io.BytesIO()
+            img.save(buf, format="PNG", optimize=True)
+            return base64.b64encode(buf.getvalue()).decode("ascii")
+        ratio = min(max_dim / w, max_dim / h)
+        new_w, new_h = int(w * ratio), int(h * ratio)
+        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception as e:
+        logger.warning("Image resize failed, using original: %s", e)
+        return image_b64 if isinstance(image_b64, str) else base64.b64encode(image_b64).decode("ascii")
+
+
 # ---------------------------------------------------------------------------
 # 1. extract_invoice(file_path, image_base64, image_media_type)
 # ---------------------------------------------------------------------------
@@ -92,7 +122,42 @@ def extract_invoice(
         try:
             client = _get_s3_client(settings)
             resp = client.get_object(Bucket=bucket, Key=file_path)
-            raw_text = resp["Body"].read().decode("utf-8", errors="replace")
+            body = resp["Body"].read()
+            fp_lower = file_path.lower()
+
+            # PDF: convert to images and use vision
+            if fp_lower.endswith(".pdf"):
+                try:
+                    import fitz
+                    doc = fitz.open(stream=body, filetype="pdf")
+                    pages_b64: list[str] = []
+                    for i in range(len(doc)):
+                        page = doc.load_page(i)
+                        pix = page.get_pixmap(dpi=100)
+                        img_bytes = pix.tobytes("png")
+                        import base64
+                        pages_b64.append(base64.b64encode(img_bytes).decode("ascii"))
+                    doc.close()
+                    if pages_b64:
+                        if use_llm:
+                            return _extract_from_images(pages_b64, source)
+                        return _parse_mock_invoice(_mock_invoice_content(source), source)
+                except ImportError:
+                    logger.warning("pymupdf not installed. pip install pymupdf for PDF extraction from S3.")
+                except Exception as e:
+                    return {"error": f"PDF extraction failed: {e}", "file_path": file_path}
+
+            # Image: convert to base64 and use vision
+            if fp_lower.endswith((".png", ".jpg", ".jpeg", ".webp")):
+                import base64
+                b64 = base64.b64encode(body).decode("ascii")
+                mt = "image/png" if fp_lower.endswith(".png") else "image/jpeg"
+                if use_llm:
+                    return _extract_from_image(b64, mt, source)
+                return _parse_mock_invoice(_mock_invoice_content(source), source)
+
+            # Text
+            raw_text = body.decode("utf-8", errors="replace")
         except Exception as e:
             return {"error": str(e), "file_path": file_path}
 
@@ -199,9 +264,10 @@ def _extract_from_images(image_pages_base64: list[str], source: str) -> dict[str
         },
     ]
     for b64 in image_pages_base64:
+        b64_resized = _resize_image_for_vision(b64)
         content.append({
             "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{b64}"},
+            "image_url": {"url": f"data:image/png;base64,{b64_resized}"},
         })
 
     msg = HumanMessage(content=content)
@@ -238,8 +304,9 @@ def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict
         logger.warning("MOCK DATA: OPENAI_API_KEY not set. Using mock for image extraction. Set OPENAI_API_KEY for real LLM extraction.")
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
-    # Build image message for vision model
-    image_url = f"data:{media_type};base64,{image_base64}"
+    # Resize to avoid context length limits (large images = many tokens)
+    image_base64 = _resize_image_for_vision(image_base64)
+    image_url = f"data:image/png;base64,{image_base64}"
     msg = HumanMessage(
         content=[
             {"type": "text", "text": f"Extract invoice fields from this invoice image. {INVOICE_EXTRACTION_SCHEMA}"},

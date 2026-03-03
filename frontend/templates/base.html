@@ -57,6 +57,7 @@
     <script>
         const WS_URL = "{{ ws_url }}";
         const ROOT_PATH = "{{ root_path }}" || "";
+        const UPLOAD_URL = (ROOT_PATH || "") + "/api/upload-invoice";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="{{ root_path }}/static/js/pdf.min.js"></script>
@@ -65,6 +66,6 @@
             pdfjsLib.GlobalWorkerOptions.workerSrc = (ROOT_PATH || "") + "/static/js/pdf.worker.min.js";
         }
     </script>
-    <script src="{{ root_path }}/static/js/app.js?v=13"></script>
+    <script src="{{ root_path }}/static/js/app.js?v=14"></script>
 </body>
 </html>

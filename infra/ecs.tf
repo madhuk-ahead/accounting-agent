@@ -44,6 +44,7 @@ resource "aws_ecs_task_definition" "frontend" {
       { name = "USE_DYNAMODB", value = "true" },
       { name = "AWS_REGION", value = var.aws_region },
       { name = "DYNAMODB_SESSIONS_TABLE", value = aws_dynamodb_table.sessions.name },
+      { name = "S3_AP_BUCKET", value = aws_s3_bucket.invoice_inbox.id },
     ]
 
     logConfiguration = {

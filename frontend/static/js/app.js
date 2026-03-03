@@ -9,6 +9,7 @@ let uploadedInvoiceType = null;
 let uploadedInvoicePagesBase64 = null;
 let uploadedInvoicePreviewUrl = null;
 let lastSelectedPdfFile = null;
+let lastSelectedFile = null;  // File object for upload (PDF or image)
 
 function initWebSocket() {
     if (!WS_URL) {
@@ -174,6 +175,7 @@ function handleInvoiceUpload(event) {
     uploadedInvoicePagesBase64 = null;
     uploadedInvoicePreviewUrl = null;
     lastSelectedPdfFile = null;
+    lastSelectedFile = file;
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -224,29 +226,34 @@ function getFormData() {
 async function runTriage() {
     const triageBtn = document.getElementById("triage-btn");
     const origLabel = triageBtn ? triageBtn.textContent : "";
-    if (lastSelectedPdfFile && !uploadedInvoicePagesBase64 && !uploadedInvoiceBase64) {
+    let formData = getFormData();
+
+    // When user has uploaded a file, upload to S3 first (avoids WebSocket payload limits)
+    if (lastSelectedFile && typeof UPLOAD_URL !== "undefined" && UPLOAD_URL) {
         if (triageBtn) {
             triageBtn.disabled = true;
-            triageBtn.textContent = "Converting PDF...";
+            triageBtn.textContent = "Uploading...";
         }
         try {
-            const ok = await convertPdfToImageForExtraction(lastSelectedPdfFile);
-            if (!ok) {
-                appendMessage("SYSTEM", "PDF conversion failed. Ensure PDF.js is loaded.");
+            const fd = new FormData();
+            fd.append("invoice", lastSelectedFile);
+            const resp = await fetch(UPLOAD_URL, { method: "POST", body: fd });
+            const json = await resp.json();
+            if (triageBtn) triageBtn.textContent = "Running AP triage...";
+            if (json.error || !json.file_path) {
+                appendMessage("SYSTEM", "Upload failed: " + (json.error || "Unknown error"));
                 if (triageBtn) { triageBtn.disabled = false; triageBtn.textContent = origLabel; }
                 return;
             }
+            formData = { file_path: json.file_path };
         } catch (e) {
-            appendMessage("SYSTEM", "PDF conversion failed. " + (e && e.message ? e.message : ""));
+            appendMessage("SYSTEM", "Upload failed: " + (e && e.message ? e.message : ""));
             if (triageBtn) { triageBtn.disabled = false; triageBtn.textContent = origLabel; }
             return;
         }
-        if (triageBtn) {
-            triageBtn.disabled = false;
-            triageBtn.textContent = origLabel;
-        }
     }
-    const formData = getFormData();
+
+    if (triageBtn) triageBtn.textContent = origLabel;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         appendMessage("SYSTEM", "Not connected. Refresh the page to reconnect.");
         scrollChatIntoView();
@@ -255,7 +262,8 @@ async function runTriage() {
     const statusEl = document.getElementById("status-area");
     if (statusEl) statusEl.textContent = "Running AP triage...";
     const hasUpload = (formData.invoice_pages_base64 && formData.invoice_pages_base64.length > 0) ||
-        (formData.invoice_file_base64 && formData.invoice_file_type);
+        (formData.invoice_file_base64 && formData.invoice_file_type) ||
+        (formData.file_path && formData.file_path.startsWith("invoices/uploads/"));
     const text = hasUpload
         ? "Run AP triage for uploaded invoice"
         : "Run AP triage for " + formData.file_path;

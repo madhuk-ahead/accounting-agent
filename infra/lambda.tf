@@ -36,9 +36,19 @@ resource "aws_lambda_function" "disconnect" {
   tags = local.common_tags
 }
 
+# Chat Lambda zip exceeds 50MB; deploy via S3
+resource "aws_s3_object" "chat_lambda" {
+  bucket = aws_s3_bucket.invoice_inbox.id
+  key    = "lambda-deployments/chat_lambda.zip"
+  source = "${path.module}/../dist/chat_lambda.zip"
+  etag   = filemd5("${path.module}/../dist/chat_lambda.zip")
+}
+
 resource "aws_lambda_function" "chat" {
-  filename      = "${path.module}/../dist/chat_lambda.zip"
-  function_name = "${local.name_prefix}-chat"
+  s3_bucket        = aws_s3_object.chat_lambda.bucket
+  s3_key           = aws_s3_object.chat_lambda.key
+  source_code_hash = filebase64sha256("${path.module}/../dist/chat_lambda.zip")
+  function_name    = "${local.name_prefix}-chat"
   role          = aws_iam_role.lambda_execution.arn
   handler       = "chat.lambda_handler"
   runtime       = "python3.11"

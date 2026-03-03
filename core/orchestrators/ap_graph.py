@@ -68,9 +68,9 @@ def ingest_node(state: APInvoiceState) -> dict:
 def validate_and_match_node(state: APInvoiceState) -> dict:
     """3-way match: Invoice / PO / Receipt. Check duplicates. Populate flags."""
     invoice = state.get("invoice_data") or {}
-    vendor_id = invoice.get("vendor_id", "vendor:techsupply")
-    po_ref = invoice.get("po_reference") or invoice.get("invoice_no", "").replace("INV-", "PO-")
-    invoice_no = invoice.get("invoice_no", "")
+    vendor_id = invoice.get("vendor_id") or "vendor:techsupply"
+    invoice_no = invoice.get("invoice_no") or ""
+    po_ref = invoice.get("po_reference") or (invoice_no.replace("INV-", "PO-") if invoice_no else "")
     invoice_amount = invoice.get("amount") or invoice.get("total") or 0
 
     flags: list[str] = list(state.get("flags", []))

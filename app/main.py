@@ -15,7 +15,7 @@ except ImportError:
 # Configure logging so MOCK DATA warnings from tools are visible
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(levelname)s: %(message)s")
 
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, File, Request, UploadFile, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -106,6 +106,25 @@ def _create_sub_app(settings, templates, root_path: str) -> FastAPI:
     @sub.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @sub.post("/api/upload-invoice")
+    async def upload_invoice(invoice: UploadFile = File(...)) -> dict[str, str]:
+        """Upload invoice file to S3; return S3 key for use in triage (avoids WebSocket payload limits)."""
+        bucket = os.getenv("S3_AP_BUCKET", "")
+        if not bucket:
+            return {"error": "S3_AP_BUCKET not configured", "file_path": ""}
+        ext = ""
+        if invoice.filename and "." in invoice.filename:
+            ext = "." + invoice.filename.rsplit(".", 1)[-1].lower()
+        key = f"invoices/uploads/{uuid.uuid4()}{ext}"
+        try:
+            import boto3
+            client = boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
+            contents = await invoice.read()
+            client.put_object(Bucket=bucket, Key=key, Body=contents, ContentType=invoice.content_type or "application/octet-stream")
+            return {"file_path": key}
+        except Exception as e:
+            return {"error": str(e), "file_path": ""}
 
     @sub.get("/")
     async def root() -> dict[str, str]:

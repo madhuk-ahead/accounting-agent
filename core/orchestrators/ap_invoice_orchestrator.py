@@ -268,9 +268,9 @@ def _get_reasoning_stages(state: dict) -> list[dict]:
     }
     stages: list[dict] = []
     for i, entry in enumerate(audit):
-        node = entry.get("node", "")
-        decision = entry.get("decision", "")
-        label, detail = stage_labels.get(node, (node.replace("_", " ").title(), ""))
+        node = entry.get("node") or ""
+        decision = entry.get("decision") or ""
+        label, detail = stage_labels.get(node, ((node or "").replace("_", " ").title(), ""))
         if node == "validate_and_match":
             stages.append({
                 "step": len(stages) + 1,
