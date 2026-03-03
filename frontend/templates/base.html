@@ -59,7 +59,12 @@
         const ROOT_PATH = "{{ root_path }}" || "";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="{{ root_path }}/static/js/app.js?v=12"></script>
+    <script src="{{ root_path }}/static/js/pdf.min.js"></script>
+    <script>
+        if (typeof pdfjsLib !== "undefined") {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = (ROOT_PATH || "") + "/static/js/pdf.worker.min.js";
+        }
+    </script>
+    <script src="{{ root_path }}/static/js/app.js?v=13"></script>
 </body>
 </html>
