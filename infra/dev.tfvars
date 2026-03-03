@@ -1,4 +1,4 @@
-# Example tfvars for dev. Copy to dev.tfvars.
+# Dev deployment tfvars for accounting-agent
 # Apply with: terraform workspace select dev && terraform apply -var-file=dev.tfvars
 
 project_name = "acct-agent"

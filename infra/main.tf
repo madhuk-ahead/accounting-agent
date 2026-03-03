@@ -14,9 +14,9 @@ terraform {
     region         = "us-east-1"
     encrypt        = true
     dynamodb_table = "aheadailabs-terraform-locks"
-    # State path: empty-agent-template/<workspace>/terraform.tfstate
-    # Use workspaces for multiple deployments: terraform workspace new my-agent-dev
-    workspace_key_prefix = "empty-agent-template"
+    # State path: accounting-agent/<workspace>/terraform.tfstate
+    # Use workspaces for dev/prod: terraform workspace select dev (or prod)
+    workspace_key_prefix = "accounting-agent"
   }
 }
 

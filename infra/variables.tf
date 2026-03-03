@@ -5,9 +5,9 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  description = "Project name for resource naming. Change before deploy to avoid collisions. Keep short (e.g. agent-tmpl): ALB and target group names have a 32-character limit."
+  description = "Project name for resource naming. Keep short (e.g. acct-agent): ALB and target group names have a 32-character limit."
   type        = string
-  default     = "ap-agent-dev"
+  default     = "acct-agent"
 }
 
 variable "environment" {
@@ -21,9 +21,9 @@ variable "environment" {
 }
 
 variable "service_path" {
-  description = "Path prefix for the service (e.g., /agent)"
+  description = "Path prefix for the service (e.g., /accounting_agent). Must match aheadailabs-infra CloudFront path."
   type        = string
-  default     = "/agent"
+  default     = "/accounting_agent"
   validation {
     condition     = startswith(var.service_path, "/")
     error_message = "service_path must start with '/'."
