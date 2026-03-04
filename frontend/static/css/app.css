@@ -346,6 +346,16 @@ body {
   margin-top: 0.5rem;
 }
 
+.message.reasoning-stages.triage-running .triage-intro {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: #e2e8f0;
+}
+
+.message.reasoning-stages.triage-running .triage-intro strong {
+  color: #60a5fa;
+}
+
 .message.reasoning-stages .stage-item {
   display: flex;
   align-items: flex-start;

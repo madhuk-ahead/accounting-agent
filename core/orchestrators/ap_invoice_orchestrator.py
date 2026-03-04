@@ -87,14 +87,45 @@ class APInvoiceOrchestrator(AgentOrchestrator):
         initial_state: APInvoiceState,
         on_stream_message: Callable[[str, str], None] | None,
     ) -> dict:
-        """Invoke the compiled graph and format the response."""
+        """Invoke the compiled graph and format the response. Stream per-node steps in real time."""
         if on_stream_message:
             on_stream_message("Running AP triage workflow...", "status")
 
         # Rebuild graph with session_id for finalize_packet
         from core.orchestrators.ap_graph import build_workflow
+        import json
         g = build_workflow(session_id=self._session_id).compile()
 
+        step_counter = [0]  # use list to allow mutation in closure
+        node_to_steps = {
+            "ingest": [("Extracting key fields from invoice", "Using LLM/vision to parse vendor, dates, amounts, line items.")],
+            "validate_and_match": [
+                ("Fetching PO & Receipt from DynamoDB/S3", "Querying Vendors, PurchaseOrders, Receipts tables."),
+                ("Validating 3-way match", "Invoice ↔ PO ↔ Receipt: 3_way_match"),
+            ],
+            "assign_coding": [("Assigning GL coding from policy", "Applying policy rules for account, cost center, approval path.")],
+            "finalize_packet": [("Generating ERP export packet", "Building ERP-ready JSON for export.")],
+            "handle_exceptions": [("Routing for manual review", "Flags detected; prepared for exception handling.")],
+        }
+
+        def emit_step(label: str, detail: str) -> None:
+            if on_stream_message:
+                step_counter[0] += 1
+                step_obj = {"step": step_counter[0], "label": label, "detail": detail}
+                on_stream_message(json.dumps(step_obj), "step")
+
+        final_state = {}
+        async for chunk in g.astream(initial_state, stream_mode="updates"):
+            for node_name in chunk:
+                steps = node_to_steps.get(node_name, [(node_name.replace("_", " ").title(), "")])
+                for label, detail in steps:
+                    emit_step(label, detail)
+            # Accumulate state from updates (chunk contains the delta for each node)
+            for node_name, node_out in chunk.items():
+                if isinstance(node_out, dict):
+                    final_state.update(node_out)
+
+        # Re-run ainvoke to get full final state (astream updates may not include merged state)
         final_state = await g.ainvoke(initial_state)
 
         reasoning_stages = _get_reasoning_stages(final_state)

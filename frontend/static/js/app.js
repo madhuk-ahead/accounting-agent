@@ -27,21 +27,24 @@ function initWebSocket() {
             const msg = JSON.parse(event.data);
             if (msg.type === "status") {
                 document.getElementById("status-area").textContent = msg.content || "";
+            } else if (msg.type === "step") {
+                let step = {};
+                try {
+                    step = typeof msg.content === "string" ? JSON.parse(msg.content) : (msg.content || {});
+                } catch (_) { step = {}; }
+                appendLiveTriageStep(step);
             } else if (msg.type === "final") {
                 document.getElementById("status-area").textContent = "";
-                if (msg.reasoning_stages && msg.reasoning_stages.length > 0) {
+                const hasLiveSteps = document.getElementById("live-triage-steps");
+                if (msg.reasoning_stages && msg.reasoning_stages.length > 0 && !hasLiveSteps) {
                     appendReasoningStages(msg.reasoning_stages);
-                    if (msg.confirmation_prompt) {
-                        appendMessage("AGENT", msg.confirmation_prompt);
-                        transcript += "\nAGENT: " + msg.confirmation_prompt;
-                    }
-                } else {
+                } else if (msg.content && !hasLiveSteps) {
                     appendMessage("AGENT", msg.content || "");
                     transcript += "\nAGENT: " + (msg.content || "");
-                    if (msg.confirmation_prompt) {
-                        appendMessage("AGENT", msg.confirmation_prompt);
-                        transcript += "\nAGENT: " + msg.confirmation_prompt;
-                    }
+                }
+                if (msg.confirmation_prompt) {
+                    appendMessage("AGENT", msg.confirmation_prompt);
+                    transcript += "\nAGENT: " + msg.confirmation_prompt;
                 }
                 if (msg.file_content) currentFileContent = msg.file_content;
                 if (msg.display_data) currentDisplayData = msg.display_data;
@@ -166,6 +169,22 @@ function updateExtractionOverlay(d) {
     overlay.classList.add("visible");
 }
 
+function clearRightPanelOutput() {
+    const preview = document.getElementById("file-preview");
+    const erpBtn = document.getElementById("erp-export-btn");
+    const draftBtn = document.getElementById("draft-email-btn");
+    if (preview) {
+        preview.innerHTML = "<p class='placeholder-text'>Upload an invoice or run triage to see: extracted fields, PO match, receipt match, coding & routing with rationale.</p>";
+        preview.classList.remove("has-content");
+    }
+    if (erpBtn) erpBtn.disabled = true;
+    if (draftBtn) draftBtn.disabled = true;
+    currentFileContent = "";
+    currentDisplayData = null;
+    const overlay = document.getElementById("extraction-overlay");
+    if (overlay) overlay.classList.remove("visible");
+}
+
 function handleInvoiceUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -176,6 +195,8 @@ function handleInvoiceUpload(event) {
     uploadedInvoicePreviewUrl = null;
     lastSelectedPdfFile = null;
     lastSelectedFile = file;
+
+    clearRightPanelOutput();
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -261,6 +282,9 @@ async function runTriage() {
     }
     const statusEl = document.getElementById("status-area");
     if (statusEl) statusEl.textContent = "Running AP triage...";
+
+    clearRightPanelOutput();
+
     const hasUpload = (formData.invoice_pages_base64 && formData.invoice_pages_base64.length > 0) ||
         (formData.invoice_file_base64 && formData.invoice_file_type) ||
         (formData.file_path && formData.file_path.startsWith("invoices/uploads/"));
@@ -268,13 +292,18 @@ async function runTriage() {
         ? "Run AP triage for uploaded invoice"
         : "Run AP triage for " + formData.file_path;
     transcript += "\nUSER: " + text;
+    appendMessage("USER", text);
+
+    const filename = lastSelectedFile?.name || (formData.file_path ? formData.file_path.split("/").pop() : null) || "invoice";
+    appendTriageRunningMessage(filename);
+
+    formData.invoice_filename = filename;
     ws.send(JSON.stringify({
         action: "message",
         text: text,
         conversation: transcript,
         form_data: formData,
     }));
-    appendMessage("USER", text);
     document.getElementById("triage-btn").disabled = true;
     setTimeout(() => { document.getElementById("triage-btn").disabled = false; }, 2000);
 }
@@ -322,6 +351,16 @@ function appendMessage(role, content) {
     el.scrollTop = el.scrollHeight;
 }
 
+function appendTriageRunningMessage(filename) {
+    const el = document.getElementById("chat-messages");
+    if (!el) return;
+    const wrap = document.createElement("div");
+    wrap.className = "message agent reasoning-stages triage-running";
+    wrap.innerHTML = "<span class='label'>AGENT</span> <p class='triage-intro'>Triage agent is running for <strong>" + escapeHtml(filename) + "</strong>.</p><div id='live-triage-steps' class='stages-list'></div>";
+    el.appendChild(wrap);
+    el.scrollTop = el.scrollHeight;
+}
+
 function appendReasoningStages(stages) {
     const el = document.getElementById("chat-messages");
     if (!el) return;
@@ -335,6 +374,17 @@ function appendReasoningStages(stages) {
     wrap.innerHTML = html;
     el.appendChild(wrap);
     el.scrollTop = el.scrollHeight;
+}
+
+function appendLiveTriageStep(step) {
+    const container = document.getElementById("live-triage-steps");
+    if (!container) return;
+    const div = document.createElement("div");
+    div.className = "stage-item";
+    div.innerHTML = "<span class='stage-step'>" + escapeHtml(String(step.step || "")) + "</span><span class='stage-label'>" + escapeHtml(step.label || "") + "</span><span class='stage-detail'>" + escapeHtml(step.detail || "") + "</span>";
+    container.appendChild(div);
+    const chatEl = document.getElementById("chat-messages");
+    if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
 }
 
 function escapeHtml(s) {
