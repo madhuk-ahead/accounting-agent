@@ -28,4 +28,4 @@ strands-ahead-package/strands_ahead-*.whl
 
 # Cache
 *.DS_Store
-.vendor/*
+.vendor/*-v
