@@ -1,5 +1,20 @@
 # ECS Fargate cluster and service for frontend
 
+locals {
+  frontend_otel_env = var.otel_endpoint != "" ? [
+    { name = "ENVIRONMENT", value = var.environment },
+    { name = "OTEL_SERVICE_NAME", value = "${var.project_name}-${var.environment}" },
+    { name = "OTEL_EXPORTER_OTLP_PROTOCOL", value = "http/protobuf" },
+    { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = var.otel_endpoint },
+  ] : []
+  frontend_otel_secrets = var.grafana_otel_secret_name != "" ? [
+    {
+      name      = "OTEL_EXPORTER_OTLP_HEADERS"
+      valueFrom = data.aws_secretsmanager_secret.grafana_otel[0].arn
+    },
+  ] : []
+}
+
 resource "aws_cloudwatch_log_group" "frontend" {
   name              = "/ecs/${local.name_prefix}-frontend"
   retention_in_days  = 7
@@ -29,41 +44,46 @@ resource "aws_ecs_task_definition" "frontend" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
-  container_definitions = jsonencode([{
-    name  = "frontend"
-    image = "${aws_ecr_repository.frontend.repository_url}:latest"
+  container_definitions = jsonencode([
+    merge(
+      {
+        name  = "frontend"
+        image = "${aws_ecr_repository.frontend.repository_url}:latest"
 
-    portMappings = [{
-      containerPort = 8080
-      protocol      = "tcp"
-    }]
+        portMappings = [{
+          containerPort = 8080
+          protocol      = "tcp"
+        }]
 
-    environment = [
-      { name = "APP_ROOT_PATH", value = var.service_path },
-      { name = "AGENT_WS_URL", value = "${replace(aws_apigatewayv2_api.websocket.api_endpoint, "https://", "wss://")}/${aws_apigatewayv2_stage.websocket.name}" },
-      { name = "USE_DYNAMODB", value = "true" },
-      { name = "AWS_REGION", value = var.aws_region },
-      { name = "DYNAMODB_SESSIONS_TABLE", value = aws_dynamodb_table.sessions.name },
-      { name = "S3_AP_BUCKET", value = aws_s3_bucket.invoice_inbox.id },
-    ]
+        environment = concat([
+          { name = "APP_ROOT_PATH", value = var.service_path },
+          { name = "AGENT_WS_URL", value = "${replace(aws_apigatewayv2_api.websocket.api_endpoint, "https://", "wss://")}/${aws_apigatewayv2_stage.websocket.name}" },
+          { name = "USE_DYNAMODB", value = "true" },
+          { name = "AWS_REGION", value = var.aws_region },
+          { name = "DYNAMODB_SESSIONS_TABLE", value = aws_dynamodb_table.sessions.name },
+          { name = "S3_AP_BUCKET", value = aws_s3_bucket.invoice_inbox.id },
+        ], local.frontend_otel_env)
 
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.frontend.name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "ecs"
-      }
-    }
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            "awslogs-group"         = aws_cloudwatch_log_group.frontend.name
+            "awslogs-region"        = var.aws_region
+            "awslogs-stream-prefix" = "ecs"
+          }
+        }
 
-    healthCheck = {
-      command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080${var.service_path}/api/health')\" || exit 1"]
-      interval    = 30
-      timeout     = 5
-      retries     = 3
-      startPeriod = 90
-    }
-  }])
+        healthCheck = {
+          command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080${var.service_path}/api/health')\" || exit 1"]
+          interval    = 30
+          timeout     = 5
+          retries     = 3
+          startPeriod = 90
+        }
+      },
+      length(local.frontend_otel_secrets) > 0 ? { secrets = local.frontend_otel_secrets } : {},
+    ),
+  ])
 
   tags = local.common_tags
 }

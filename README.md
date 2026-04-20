@@ -72,6 +72,8 @@ uvicorn app.main:app --reload --port 8000
 
 Open http://localhost:8000/app. If mock data is used, you'll see `MOCK DATA:` warnings in the console.
 
+**Uploads without AWS:** If `S3_AP_BUCKET` is not set, invoice uploads are stored under `.local_s3_mirror/` in the repo (same `invoices/uploads/...` keys as S3) so AP triage still runs locally. With a bucket set, uploads go to S3 as before.
+
 ## Orchestrator type
 
 Set `ORCHESTRATOR_TYPE` to `langraph` (default) or `strands`. `langraph` uses the full AP Invoice LangGraph workflow; `strands` uses a Strands Agent with AP tools.

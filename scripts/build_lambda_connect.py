@@ -27,6 +27,10 @@ def main():
         check=True,
         cwd=PROJECT_ROOT,
     )
+    core_dst = BUILD_DIR / "core"
+    shutil.copytree(PROJECT_ROOT / "core", core_dst, dirs_exist_ok=True)
+    for d in core_dst.rglob("__pycache__"):
+        shutil.rmtree(d)
     for d in BUILD_DIR.rglob("__pycache__"):
         shutil.rmtree(d)
     DIST_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,13 @@
 # Frontend and app (FastAPI, static serving)
+certifi>=2024.0.0
+requests>=2.31.0
+truststore>=0.9.0
+# HTTP/2 for urllib3/requests — OTLP to Grafana Cloud (Cloudflare) often rejects HTTP/1.1-only POSTs.
+urllib3-future>=2.7.0
 python-dotenv>=1.0.0
 fastapi>=0.104.0
+# Starlette 1.x + Jinja2 template cache breaks TemplateResponse (500 on /app in Docker).
+starlette>=0.40.0,<1.0
 uvicorn[standard]>=0.24.0
 gunicorn>=21.2.0
 jinja2>=3.1.0
@@ -13,6 +20,15 @@ pymupdf>=1.24.0
 reportlab>=4.0.0
 cairosvg>=2.7.0
 Pillow>=10.0.0
+
+# OpenTelemetry (Grafana Cloud OTLP)
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-exporter-otlp-proto-http>=1.25.0
+opentelemetry-exporter-otlp-proto-grpc>=1.25.0
+grpcio>=1.60.0
+opentelemetry-instrumentation-fastapi>=0.46b0
+opentelemetry-instrumentation-botocore>=0.46b0
 
 # Optional: LangGraph orchestrator (set ORCHESTRATOR_TYPE=langgraph)
 langgraph>=0.2.0

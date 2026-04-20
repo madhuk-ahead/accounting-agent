@@ -85,7 +85,17 @@ resource "aws_iam_role_policy" "lambda_execution" {
         Action = [
           "secretsmanager:GetSecretValue",
         ]
-        Resource = data.aws_secretsmanager_secret.openai_api_key.arn
+        Resource = concat(
+          [data.aws_secretsmanager_secret.openai_api_key.arn],
+          var.grafana_otel_secret_name != "" ? [data.aws_secretsmanager_secret.grafana_otel[0].arn] : [],
+        )
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction",
+        ]
+        Resource = aws_lambda_function.chat.arn
       },
     ]
   })
@@ -116,32 +126,43 @@ resource "aws_iam_role_policy" "ecs_execution" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:GetAuthorizationToken",
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-        ]
-        Resource = "${aws_cloudwatch_log_group.frontend.arn}:*"
-      },
-    ]
+    Statement = concat(
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "ecr:GetAuthorizationToken",
+          ]
+          Resource = "*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage",
+          ]
+          Resource = "*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+          ]
+          Resource = "${aws_cloudwatch_log_group.frontend.arn}:*"
+        },
+      ],
+      var.grafana_otel_secret_name != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "secretsmanager:GetSecretValue",
+          ]
+          Resource = data.aws_secretsmanager_secret.grafana_otel[0].arn
+        },
+      ] : [],
+    )
   })
 }
 

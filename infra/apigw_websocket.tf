@@ -21,9 +21,10 @@ resource "aws_apigatewayv2_integration" "disconnect" {
 }
 
 resource "aws_apigatewayv2_integration" "chat" {
-  api_id           = aws_apigatewayv2_api.websocket.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.chat.invoke_arn
+  api_id             = aws_apigatewayv2_api.websocket.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.chat.invoke_arn
+  # Integration timeout: API Gateway WebSocket max is 29s (provider has no stable timeout_millis here).
 }
 
 resource "aws_apigatewayv2_route" "connect" {

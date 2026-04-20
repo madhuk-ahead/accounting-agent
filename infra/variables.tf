@@ -36,3 +36,21 @@ variable "openai_api_key_secret_name" {
   default     = "openai_api_key"
 }
 
+variable "otel_endpoint" {
+  description = "OTLP HTTP endpoint (no trailing path). Empty = telemetry disabled."
+  type        = string
+  default     = ""
+}
+
+variable "grafana_otel_secret_name" {
+  description = "Secrets Manager secret name whose value is OTEL auth header (e.g. Authorization=Basic ...). Empty = no OTLP auth / no extra IAM."
+  type        = string
+  default     = ""
+}
+
+variable "ap_triage_use_llm" {
+  description = "If false, chat Lambda sets AP_TRIAGE_USE_LLM=false so ingest skips LLM extraction (mock) and usually finishes under API Gateway's 29s WebSocket limit. Set true for full LLM triage (needs async architecture or expect timeouts)."
+  type        = bool
+  default     = true
+}
+

@@ -5,3 +5,8 @@
 data "aws_secretsmanager_secret" "openai_api_key" {
   name = var.openai_api_key_secret_name
 }
+
+data "aws_secretsmanager_secret" "grafana_otel" {
+  count = var.grafana_otel_secret_name != "" ? 1 : 0
+  name  = var.grafana_otel_secret_name
+}

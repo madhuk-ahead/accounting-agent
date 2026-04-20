@@ -1,5 +1,17 @@
 # Lambda: WebSocket connect, disconnect, and chat (default route)
 
+locals {
+  lambda_otel_env = var.otel_endpoint != "" ? merge(
+    {
+      ENVIRONMENT                 = var.environment
+      OTEL_SERVICE_NAME           = "${var.project_name}-${var.environment}"
+      OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
+      OTEL_EXPORTER_OTLP_ENDPOINT = var.otel_endpoint
+    },
+    var.grafana_otel_secret_name != "" ? { GRAFANA_OTEL_SECRET_NAME = var.grafana_otel_secret_name } : {}
+  ) : {}
+}
+
 resource "aws_lambda_function" "connect" {
   filename      = "${path.module}/../dist/connect_lambda.zip"
   function_name = "${local.name_prefix}-connect"
@@ -10,9 +22,10 @@ resource "aws_lambda_function" "connect" {
   memory_size   = 256
 
   environment {
-    variables = {
-      DYNAMODB_SESSIONS_TABLE = aws_dynamodb_table.sessions.name
-    }
+    variables = merge(
+      { DYNAMODB_SESSIONS_TABLE = aws_dynamodb_table.sessions.name },
+      local.lambda_otel_env,
+    )
   }
 
   tags = local.common_tags
@@ -58,15 +71,19 @@ resource "aws_lambda_function" "chat" {
   layers = []
 
   environment {
-    variables = {
-      DYNAMODB_SESSIONS_TABLE        = aws_dynamodb_table.sessions.name
-      DYNAMODB_VENDORS_TABLE         = aws_dynamodb_table.vendor_master.name
-      DYNAMODB_POS_TABLE             = aws_dynamodb_table.po_ledger.name
-      DYNAMODB_RECEIPTS_TABLE        = aws_dynamodb_table.receipts.name
-      DYNAMODB_INVOICE_STATUS_TABLE  = aws_dynamodb_table.invoice_status.name
-      S3_AP_BUCKET                   = aws_s3_bucket.invoice_inbox.id
-      OPENAI_API_KEY_SECRET          = var.openai_api_key_secret_name
-    }
+    variables = merge(
+      {
+        DYNAMODB_SESSIONS_TABLE       = aws_dynamodb_table.sessions.name
+        DYNAMODB_VENDORS_TABLE        = aws_dynamodb_table.vendor_master.name
+        DYNAMODB_POS_TABLE            = aws_dynamodb_table.po_ledger.name
+        DYNAMODB_RECEIPTS_TABLE       = aws_dynamodb_table.receipts.name
+        DYNAMODB_INVOICE_STATUS_TABLE = aws_dynamodb_table.invoice_status.name
+        S3_AP_BUCKET                  = aws_s3_bucket.invoice_inbox.id
+        OPENAI_API_KEY_SECRET         = var.openai_api_key_secret_name
+        AP_TRIAGE_USE_LLM             = var.ap_triage_use_llm ? "true" : "false"
+      },
+      local.lambda_otel_env,
+    )
   }
 
   tags = local.common_tags

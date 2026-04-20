@@ -26,6 +26,14 @@ except ImportError:
 # Node: ingest
 # ---------------------------------------------------------------------------
 
+def _ap_triage_use_llm() -> bool:
+    """Lambda sets AP_TRIAGE_USE_LLM=false to finish under API Gateway WebSocket ~29s limit (mock ingest)."""
+    v = os.getenv("AP_TRIAGE_USE_LLM")
+    if v is None or v.strip() == "":
+        return True
+    return v.strip().lower() in ("1", "true", "yes")
+
+
 def ingest_node(state: APInvoiceState) -> dict:
     """Ingest invoice: extract fields via LLM or mock (text or image)."""
     inv = state.get("invoice_data") or {}
@@ -38,6 +46,7 @@ def ingest_node(state: APInvoiceState) -> dict:
         image_base64=image_base64,
         image_media_type=image_media_type,
         image_pages_base64=image_pages_base64,
+        use_llm=_ap_triage_use_llm(),
     )
     if "error" in extracted:
         return {

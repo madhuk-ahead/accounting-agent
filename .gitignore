@@ -29,3 +29,6 @@ strands-ahead-package/strands_ahead-*.whl
 # Cache
 *.DS_Store
 .vendor/*-v
+
+# Local dev: uploads when S3_AP_BUCKET unset (mirrors S3 keys)
+.local_s3_mirror/

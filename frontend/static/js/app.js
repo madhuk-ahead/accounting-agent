@@ -10,6 +10,14 @@ let uploadedInvoicePagesBase64 = null;
 let uploadedInvoicePreviewUrl = null;
 let lastSelectedPdfFile = null;
 let lastSelectedFile = null;  // File object for upload (PDF or image)
+let triageWatchdog = null;
+
+function clearTriageWatchdog() {
+    if (triageWatchdog) {
+        clearTimeout(triageWatchdog);
+        triageWatchdog = null;
+    }
+}
 
 function initWebSocket() {
     if (!WS_URL) {
@@ -25,6 +33,9 @@ function initWebSocket() {
     ws.onmessage = (event) => {
         try {
             const msg = JSON.parse(event.data);
+            if (msg.type === "final" || msg.type === "error") {
+                clearTriageWatchdog();
+            }
             if (msg.type === "status") {
                 document.getElementById("status-area").textContent = msg.content || "";
             } else if (msg.type === "step") {
@@ -304,6 +315,17 @@ async function runTriage() {
         conversation: transcript,
         form_data: formData,
     }));
+    clearTriageWatchdog();
+    triageWatchdog = setTimeout(function () {
+        triageWatchdog = null;
+        const st = document.getElementById("status-area");
+        if (st && (st.textContent || "").indexOf("Running AP triage") !== -1) {
+            appendMessage(
+                "SYSTEM",
+                "No response yet. API Gateway WebSocket routes time out around 29s for long LLM runs—check CloudWatch for acct-agent-*-chat, or set ap_triage_use_llm=false in dev.tfvars for mock ingest."
+            );
+        }
+    }, 28000);
     document.getElementById("triage-btn").disabled = true;
     setTimeout(() => { document.getElementById("triage-btn").disabled = false; }, 2000);
 }

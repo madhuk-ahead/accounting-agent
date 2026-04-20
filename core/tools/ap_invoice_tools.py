@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from pathlib import Path
 from decimal import Decimal
 from datetime import datetime, timezone
 from typing import Any
@@ -100,6 +101,27 @@ def extract_invoice(
         Dict with vendor_name, dates, amounts, line_items, tax, remit_to,
         payment_terms, vendor_id, invoice_no, po_reference, currency, etc.
     """
+    from core.telemetry_instrumentation import trace_tool
+
+    def _run() -> dict[str, Any]:
+        return _extract_invoice_impl(
+            file_path=file_path,
+            image_base64=image_base64,
+            image_media_type=image_media_type,
+            image_pages_base64=image_pages_base64,
+            use_llm=use_llm,
+        )
+
+    return trace_tool("extract_invoice", _run)
+
+
+def _extract_invoice_impl(
+    file_path: str = "",
+    image_base64: str | None = None,
+    image_media_type: str | None = None,
+    image_pages_base64: list[str] | None = None,
+    use_llm: bool = True,
+) -> dict[str, Any]:
     settings = get_settings()
     bucket = _get_bucket(settings)
     source = file_path or "uploaded"
@@ -116,15 +138,27 @@ def extract_invoice(
             return _extract_from_image(image_base64, image_media_type, source)
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
-    # Try S3 first (invoices/ prefix)
+    # Try S3 or local dev mirror (.local_s3_mirror/<key> when S3_AP_BUCKET unset)
     raw_text = ""
+    invoice_body: bytes | None = None
     if bucket and file_path and file_path.startswith("invoices/"):
         try:
             client = _get_s3_client(settings)
             resp = client.get_object(Bucket=bucket, Key=file_path)
-            body = resp["Body"].read()
-            fp_lower = file_path.lower()
+            invoice_body = resp["Body"].read()
+        except Exception as e:
+            return {"error": str(e), "file_path": file_path}
+    elif not bucket and file_path and file_path.startswith("invoices/"):
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        local_file = repo_root / ".local_s3_mirror" / file_path
+        if local_file.is_file():
+            invoice_body = local_file.read_bytes()
 
+    if invoice_body is not None:
+        body = invoice_body
+        fp_lower = file_path.lower()
+
+        try:
             # PDF: convert to images and use vision
             if fp_lower.endswith(".pdf"):
                 try:
@@ -164,7 +198,11 @@ def extract_invoice(
     # For local or missing file, use mock content
     if not raw_text:
         if not bucket:
-            logger.warning("MOCK DATA: S3_AP_BUCKET not set. Using mock invoice content. Set S3_AP_BUCKET and upload invoices to S3 for real extraction.")
+            logger.warning(
+                "MOCK DATA: S3_AP_BUCKET not set and no file under .local_s3_mirror/%s. "
+                "Use local upload (/api/upload-invoice) or set S3_AP_BUCKET for S3.",
+                file_path or "invoices/...",
+            )
         else:
             logger.warning("MOCK DATA: Invoice file not found in S3 (%s). Using mock content. Run seed_ap_invoice.py to upload sample invoices.", file_path)
         raw_text = _mock_invoice_content(file_path or source)
@@ -233,9 +271,15 @@ def _extract_with_llm(raw_text: str, file_path: str) -> dict[str, Any]:
         ("human", "{text}"),
     ])
 
+    from core.telemetry_instrumentation import trace_llm_langchain
+
     model = ChatOpenAI(model="gpt-4o-mini", api_key=api_key, temperature=0)
     chain = prompt | model | JsonOutputParser()
-    parsed = chain.invoke({"text": raw_text})
+    parsed = trace_llm_langchain(
+        "gpt-4o-mini",
+        0.0,
+        lambda: chain.invoke({"text": raw_text}),
+    )
     parsed.setdefault("amount", parsed.get("total"))
     parsed["_source"] = file_path
     parsed["_extracted_at"] = datetime.now(tz=timezone.utc).isoformat()
@@ -270,10 +314,16 @@ def _extract_from_images(image_pages_base64: list[str], source: str) -> dict[str
             "image_url": {"url": f"data:image/png;base64,{b64_resized}"},
         })
 
+    from core.telemetry_instrumentation import trace_llm_langchain
+
     msg = HumanMessage(content=content)
     model = ChatOpenAI(model="gpt-4o", api_key=api_key, temperature=0)
     try:
-        response = model.invoke([msg])
+        response = trace_llm_langchain(
+            "gpt-4o",
+            0.0,
+            lambda: model.invoke([msg]),
+        )
         text = response.content if hasattr(response, "content") else str(response)
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
@@ -294,7 +344,6 @@ def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict
     try:
         from langchain_openai import ChatOpenAI
         from langchain_core.messages import HumanMessage
-        from langchain_core.output_parsers import JsonOutputParser
     except ImportError:
         logger.warning("MOCK DATA: langchain_openai not installed. Using mock. pip install langchain-openai langchain-core")
         return _parse_mock_invoice(_mock_invoice_content(source), source)
@@ -313,10 +362,15 @@ def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict
             {"type": "image_url", "image_url": {"url": image_url}},
         ]
     )
+    from core.telemetry_instrumentation import trace_llm_langchain
+
     model = ChatOpenAI(model="gpt-4o", api_key=api_key, temperature=0)
-    parser = JsonOutputParser()
     try:
-        response = model.invoke([msg])
+        response = trace_llm_langchain(
+            "gpt-4o",
+            0.0,
+            lambda: model.invoke([msg]),
+        )
         text = response.content if hasattr(response, "content") else str(response)
         # Try to parse JSON from response (handle markdown code blocks)
         if "```json" in text:
