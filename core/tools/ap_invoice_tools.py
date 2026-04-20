@@ -19,6 +19,7 @@ def _get_dynamodb_resource(settings: Settings | None = None):
     settings = settings or get_settings()
     region = settings.aws_region or os.getenv("AWS_REGION", "us-east-1")
     import boto3
+
     return boto3.resource("dynamodb", region_name=region)
 
 
@@ -26,6 +27,7 @@ def _get_s3_client(settings: Settings | None = None):
     settings = settings or get_settings()
     region = settings.aws_region or os.getenv("AWS_REGION", "us-east-1")
     import boto3
+
     return boto3.client("s3", region_name=region)
 
 
@@ -50,11 +52,16 @@ def _get_bucket(settings: Settings | None = None) -> str:
 def _resize_image_for_vision(image_b64: str | bytes, max_dim: int = 1024) -> str:
     """Resize image to stay within vision model context limits. Returns base64 PNG."""
     import base64
+
     try:
         from PIL import Image
         import io
     except ImportError:
-        return image_b64 if isinstance(image_b64, str) else base64.b64encode(image_b64).decode("ascii")
+        return (
+            image_b64
+            if isinstance(image_b64, str)
+            else base64.b64encode(image_b64).decode("ascii")
+        )
     try:
         if isinstance(image_b64, str):
             raw = base64.b64decode(image_b64)
@@ -74,12 +81,17 @@ def _resize_image_for_vision(image_b64: str | bytes, max_dim: int = 1024) -> str
         return base64.b64encode(buf.getvalue()).decode("ascii")
     except Exception as e:
         logger.warning("Image resize failed, using original: %s", e)
-        return image_b64 if isinstance(image_b64, str) else base64.b64encode(image_b64).decode("ascii")
+        return (
+            image_b64
+            if isinstance(image_b64, str)
+            else base64.b64encode(image_b64).decode("ascii")
+        )
 
 
 # ---------------------------------------------------------------------------
 # 1. extract_invoice(file_path, image_base64, image_media_type)
 # ---------------------------------------------------------------------------
+
 
 def extract_invoice(
     file_path: str = "",
@@ -163,6 +175,7 @@ def _extract_invoice_impl(
             if fp_lower.endswith(".pdf"):
                 try:
                     import fitz
+
                     doc = fitz.open(stream=body, filetype="pdf")
                     pages_b64: list[str] = []
                     for i in range(len(doc)):
@@ -170,20 +183,29 @@ def _extract_invoice_impl(
                         pix = page.get_pixmap(dpi=100)
                         img_bytes = pix.tobytes("png")
                         import base64
+
                         pages_b64.append(base64.b64encode(img_bytes).decode("ascii"))
                     doc.close()
                     if pages_b64:
                         if use_llm:
                             return _extract_from_images(pages_b64, source)
-                        return _parse_mock_invoice(_mock_invoice_content(source), source)
+                        return _parse_mock_invoice(
+                            _mock_invoice_content(source), source
+                        )
                 except ImportError:
-                    logger.warning("pymupdf not installed. pip install pymupdf for PDF extraction from S3.")
+                    logger.warning(
+                        "pymupdf not installed. pip install pymupdf for PDF extraction from S3."
+                    )
                 except Exception as e:
-                    return {"error": f"PDF extraction failed: {e}", "file_path": file_path}
+                    return {
+                        "error": f"PDF extraction failed: {e}",
+                        "file_path": file_path,
+                    }
 
             # Image: convert to base64 and use vision
             if fp_lower.endswith((".png", ".jpg", ".jpeg", ".webp")):
                 import base64
+
                 b64 = base64.b64encode(body).decode("ascii")
                 mt = "image/png" if fp_lower.endswith(".png") else "image/jpeg"
                 if use_llm:
@@ -204,7 +226,10 @@ def _extract_invoice_impl(
                 file_path or "invoices/...",
             )
         else:
-            logger.warning("MOCK DATA: Invoice file not found in S3 (%s). Using mock content. Run seed_ap_invoice.py to upload sample invoices.", file_path)
+            logger.warning(
+                "MOCK DATA: Invoice file not found in S3 (%s). Using mock content. Run seed_ap_invoice.py to upload sample invoices.",
+                file_path,
+            )
         raw_text = _mock_invoice_content(file_path or source)
 
     if use_llm and raw_text:
@@ -258,18 +283,24 @@ def _extract_with_llm(raw_text: str, file_path: str) -> dict[str, Any]:
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_core.output_parsers import JsonOutputParser
     except ImportError:
-        logger.warning("MOCK DATA: langchain_openai not installed. Using mock parser. pip install langchain-openai langchain-core")
+        logger.warning(
+            "MOCK DATA: langchain_openai not installed. Using mock parser. pip install langchain-openai langchain-core"
+        )
         return _parse_mock_invoice(raw_text, file_path)
 
     api_key = get_settings().openai_api_key or os.getenv("OPENAI_API_KEY")
     if not api_key:
-        logger.warning("MOCK DATA: OPENAI_API_KEY not set. Using mock parser. Set OPENAI_API_KEY for real LLM extraction.")
+        logger.warning(
+            "MOCK DATA: OPENAI_API_KEY not set. Using mock parser. Set OPENAI_API_KEY for real LLM extraction."
+        )
         return _parse_mock_invoice(raw_text, file_path)
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", INVOICE_EXTRACTION_SCHEMA),
-        ("human", "{text}"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", INVOICE_EXTRACTION_SCHEMA),
+            ("human", "{text}"),
+        ]
+    )
 
     from core.telemetry_instrumentation import trace_llm_langchain
 
@@ -293,12 +324,16 @@ def _extract_from_images(image_pages_base64: list[str], source: str) -> dict[str
         from langchain_core.messages import HumanMessage
         from langchain_core.output_parsers import JsonOutputParser
     except ImportError:
-        logger.warning("MOCK DATA: langchain_openai not installed. Using mock. pip install langchain-openai langchain-core")
+        logger.warning(
+            "MOCK DATA: langchain_openai not installed. Using mock. pip install langchain-openai langchain-core"
+        )
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
     api_key = get_settings().openai_api_key or os.getenv("OPENAI_API_KEY")
     if not api_key:
-        logger.warning("MOCK DATA: OPENAI_API_KEY not set. Using mock for image extraction. Set OPENAI_API_KEY for real LLM extraction.")
+        logger.warning(
+            "MOCK DATA: OPENAI_API_KEY not set. Using mock for image extraction. Set OPENAI_API_KEY for real LLM extraction."
+        )
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
     content: list[dict[str, Any]] = [
@@ -309,10 +344,12 @@ def _extract_from_images(image_pages_base64: list[str], source: str) -> dict[str
     ]
     for b64 in image_pages_base64:
         b64_resized = _resize_image_for_vision(b64)
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{b64_resized}"},
-        })
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{b64_resized}"},
+            }
+        )
 
     from core.telemetry_instrumentation import trace_llm_langchain
 
@@ -339,18 +376,27 @@ def _extract_from_images(image_pages_base64: list[str], source: str) -> dict[str
     return parsed
 
 
-def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict[str, Any]:
+def _extract_from_image(
+    image_base64: str, media_type: str, source: str
+) -> dict[str, Any]:
     """Use vision model to extract invoice fields from image or PDF."""
     try:
         from langchain_openai import ChatOpenAI
         from langchain_core.messages import HumanMessage
     except ImportError:
-        logger.warning("MOCK DATA: langchain_openai not installed. Using mock. pip install langchain-openai langchain-core")
+        logger.warning(
+            "MOCK DATA: langchain_openai not installed. Using mock. pip install langchain-openai langchain-core"
+        )
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
     api_key = get_settings().openai_api_key or os.getenv("OPENAI_API_KEY")
+    print(
+        f"[EXTRACT] API key loaded: {'YES' if api_key else 'NO'}, key prefix: {api_key[:15] if api_key else 'NONE'}"
+    )
     if not api_key:
-        logger.warning("MOCK DATA: OPENAI_API_KEY not set. Using mock for image extraction. Set OPENAI_API_KEY for real LLM extraction.")
+        logger.warning(
+            "MOCK DATA: OPENAI_API_KEY not set. Using mock for image extraction. Set OPENAI_API_KEY for real LLM extraction."
+        )
         return _parse_mock_invoice(_mock_invoice_content(source), source)
 
     # Resize to avoid context length limits (large images = many tokens)
@@ -358,13 +404,17 @@ def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict
     image_url = f"data:image/png;base64,{image_base64}"
     msg = HumanMessage(
         content=[
-            {"type": "text", "text": f"Extract invoice fields from this invoice image. {INVOICE_EXTRACTION_SCHEMA}"},
+            {
+                "type": "text",
+                "text": f"Extract invoice fields from this invoice image. {INVOICE_EXTRACTION_SCHEMA}",
+            },
             {"type": "image_url", "image_url": {"url": image_url}},
         ]
     )
     from core.telemetry_instrumentation import trace_llm_langchain
 
     model = ChatOpenAI(model="gpt-4o", api_key=api_key, temperature=0)
+    print("[EXTRACT] Calling OpenAI gpt-4o vision...")
     try:
         response = trace_llm_langchain(
             "gpt-4o",
@@ -372,13 +422,15 @@ def _extract_from_image(image_base64: str, media_type: str, source: str) -> dict
             lambda: model.invoke([msg]),
         )
         text = response.content if hasattr(response, "content") else str(response)
+        print(f"[EXTRACT] OpenAI response: {text[:200]}...")
         # Try to parse JSON from response (handle markdown code blocks)
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
         elif "```" in text:
             text = text.split("```")[1].split("```")[0].strip()
         parsed = json.loads(text)
-    except (json.JSONDecodeError, TypeError) as e:
+    except Exception as e:
+        print(f"[EXTRACT] ERROR: {e}")
         return {"error": f"Could not parse extraction: {e}", "_source": source}
 
     parsed.setdefault("amount", parsed.get("total"))
@@ -395,7 +447,9 @@ def _parse_mock_invoice(raw_text: str, file_path: str) -> dict[str, Any]:
     in_remit = False
     for line in lines:
         if "Invoice #" in line or "Invoice No" in line:
-            data["invoice_no"] = line.split("#")[-1].strip() or line.split(":")[-1].strip()
+            data["invoice_no"] = (
+                line.split("#")[-1].strip() or line.split(":")[-1].strip()
+            )
         elif "Vendor:" in line:
             parts = line.split("Vendor:")[-1].strip().split("(")
             data["vendor_name"] = parts[0].strip()
@@ -430,7 +484,9 @@ def _parse_mock_invoice(raw_text: str, file_path: str) -> dict[str, Any]:
             parts = line.strip()[2:].rsplit(":", 1)
             if len(parts) == 2:
                 desc, amt = parts[0].strip(), _parse_amount(parts[1])
-                data.setdefault("line_items", []).append({"description": desc, "amount": amt})
+                data.setdefault("line_items", []).append(
+                    {"description": desc, "amount": amt}
+                )
         if "currency" not in data and ("USD" in line or "EUR" in line):
             data["currency"] = "USD" if "USD" in line else "EUR"
     if remit_lines:
@@ -456,6 +512,7 @@ def _parse_amount(s: str) -> float | None:
 # 2. query_mock_erp(vendor_id, po_id)
 # ---------------------------------------------------------------------------
 
+
 def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
     """Query mock DynamoDB tables: Vendors, PurchaseOrders, Receipts.
 
@@ -479,11 +536,19 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
     # environment as a fallback.  reading os.getenv() here ensures we don't
     # accidentally continue using an empty string if env vars were populated
     # after the Settings instance was created.
-    vendors_table = getattr(settings, "dynamodb_vendors_table", None) or os.getenv("DYNAMODB_VENDORS_TABLE", "")
-    pos_table = getattr(settings, "dynamodb_pos_table", None) or os.getenv("DYNAMODB_POS_TABLE", "")
-    receipts_table = os.getenv("DYNAMODB_RECEIPTS_TABLE", "") or getattr(settings, "dynamodb_receipts_table", "")
+    vendors_table = getattr(settings, "dynamodb_vendors_table", None) or os.getenv(
+        "DYNAMODB_VENDORS_TABLE", ""
+    )
+    pos_table = getattr(settings, "dynamodb_pos_table", None) or os.getenv(
+        "DYNAMODB_POS_TABLE", ""
+    )
+    receipts_table = os.getenv("DYNAMODB_RECEIPTS_TABLE", "") or getattr(
+        settings, "dynamodb_receipts_table", ""
+    )
 
-    logger.info(f"tables: vendors={vendors_table!r} pos={pos_table!r} receipts={receipts_table!r} region={region!r}")
+    logger.info(
+        f"tables: vendors={vendors_table!r} pos={pos_table!r} receipts={receipts_table!r} region={region!r}"
+    )
 
     result: dict[str, Any] = {"vendor": None, "po": None, "receipt": None}
 
@@ -496,7 +561,9 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
         except Exception as e:
             result["vendor_error"] = str(e)
     else:
-        logger.warning("MOCK DATA: DYNAMODB_VENDORS_TABLE not set. Using mock vendor/PO/receipt. Set env vars and run seed_ap_invoice.py for real data.")
+        logger.warning(
+            "MOCK DATA: DYNAMODB_VENDORS_TABLE not set. Using mock vendor/PO/receipt. Set env vars and run seed_ap_invoice.py for real data."
+        )
         result["vendor"] = _mock_vendor(vendor_id)
 
     if pos_table:
@@ -516,7 +583,11 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
         po_id_val = result["po"].get("po_id") or po_id
         try:
             t = dynamodb.Table(receipts_table)
-            resp = t.query(KeyConditionExpression="po_id = :pid", ExpressionAttributeValues={":pid": po_id_val}, Limit=1)
+            resp = t.query(
+                KeyConditionExpression="po_id = :pid",
+                ExpressionAttributeValues={":pid": po_id_val},
+                Limit=1,
+            )
             items = resp.get("Items", [])
             result["receipt"] = items[0] if items else {}
         except Exception as e:
@@ -524,7 +595,9 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
     elif result.get("po"):
         # PO found but receipts_table not configured → use mock receipt
         if pos_table:
-            logger.warning("MOCK DATA: DYNAMODB_RECEIPTS_TABLE not set. Using mock receipt.")
+            logger.warning(
+                "MOCK DATA: DYNAMODB_RECEIPTS_TABLE not set. Using mock receipt."
+            )
         result["receipt"] = _mock_receipt(po_id)
     else:
         # No PO found → no receipt to match; do not return mock receipt
@@ -535,11 +608,26 @@ def query_mock_erp(vendor_id: str, po_id: str) -> dict[str, Any]:
 
 def _mock_vendor(vendor_id: str) -> dict:
     vendors = {
-        "vendor:acme": {"name": "Acme IT Services", "default_gl_code": "6105", "default_cost_center": "IT-100"},
-        "vendor:techsupply": {"name": "TechSupply Inc.", "default_gl_code": "6105", "default_cost_center": "IT-100"},
-        "vendor:brightmarketing": {"name": "BrightMarketing Corp", "default_gl_code": "6200", "default_cost_center": "MKT-300"},
+        "vendor:acme": {
+            "name": "Acme IT Services",
+            "default_gl_code": "6105",
+            "default_cost_center": "IT-100",
+        },
+        "vendor:techsupply": {
+            "name": "TechSupply Inc.",
+            "default_gl_code": "6105",
+            "default_cost_center": "IT-100",
+        },
+        "vendor:brightmarketing": {
+            "name": "BrightMarketing Corp",
+            "default_gl_code": "6200",
+            "default_cost_center": "MKT-300",
+        },
     }
-    v = vendors.get(vendor_id, {"name": "Vendor", "default_gl_code": "6105", "default_cost_center": "IT-100"})
+    v = vendors.get(
+        vendor_id,
+        {"name": "Vendor", "default_gl_code": "6105", "default_cost_center": "IT-100"},
+    )
     return {
         "id": vendor_id,
         "name": v["name"],
@@ -553,14 +641,42 @@ def _mock_vendor(vendor_id: str) -> dict:
 def _mock_po(po_id: str) -> dict:
     pid = po_id if "PO-" in po_id else f"PO-{po_id}"
     pos = {
-        "PO-5001": {"vendor_id": "vendor:techsupply", "amount": 4500.0, "cost_center": "IT-100",
-            "line_items": [{"description": "IT Equipment (Laptops)", "amount": 3200.0}, {"description": "Software License (Annual)", "amount": 1300.0}]},
-        "PO-5002": {"vendor_id": "vendor:techsupply", "amount": 2800.0, "cost_center": "IT-100",
-            "line_items": [{"description": "Cloud Services (Annual)", "amount": 2800.0}]},
-        "PO-5003": {"vendor_id": "vendor:acme", "amount": 4500.0, "cost_center": "IT-100",
-            "line_items": [{"description": "IT Equipment (Laptops)", "amount": 3200.0}, {"description": "Software License (Annual)", "amount": 1300.0}]},
+        "PO-5001": {
+            "vendor_id": "vendor:techsupply",
+            "amount": 4500.0,
+            "cost_center": "IT-100",
+            "line_items": [
+                {"description": "IT Equipment (Laptops)", "amount": 3200.0},
+                {"description": "Software License (Annual)", "amount": 1300.0},
+            ],
+        },
+        "PO-5002": {
+            "vendor_id": "vendor:techsupply",
+            "amount": 2800.0,
+            "cost_center": "IT-100",
+            "line_items": [
+                {"description": "Cloud Services (Annual)", "amount": 2800.0}
+            ],
+        },
+        "PO-5003": {
+            "vendor_id": "vendor:acme",
+            "amount": 4500.0,
+            "cost_center": "IT-100",
+            "line_items": [
+                {"description": "IT Equipment (Laptops)", "amount": 3200.0},
+                {"description": "Software License (Annual)", "amount": 1300.0},
+            ],
+        },
     }
-    p = pos.get(pid, {"vendor_id": "vendor:techsupply", "amount": 4500.0, "cost_center": "IT-100", "line_items": []})
+    p = pos.get(
+        pid,
+        {
+            "vendor_id": "vendor:techsupply",
+            "amount": 4500.0,
+            "cost_center": "IT-100",
+            "line_items": [],
+        },
+    )
     return {"po_id": pid, "status": "approved", **p}
 
 
@@ -579,10 +695,13 @@ def _mock_receipt(po_id: str) -> dict:
 # 3. check_duplicates(invoice_no, vendor)
 # ---------------------------------------------------------------------------
 
+
 def check_duplicates(invoice_no: str, vendor: str) -> dict[str, Any]:
     """Check the invoice_status table for existing invoices (duplicate detection)."""
     settings = get_settings()
-    table_name = getattr(settings, "dynamodb_invoice_status_table", None) or os.getenv("DYNAMODB_INVOICE_STATUS_TABLE", "")
+    table_name = getattr(settings, "dynamodb_invoice_status_table", None) or os.getenv(
+        "DYNAMODB_INVOICE_STATUS_TABLE", ""
+    )
 
     if table_name:
         try:
@@ -599,7 +718,12 @@ def check_duplicates(invoice_no: str, vendor: str) -> dict[str, Any]:
                 "vendor": vid,
             }
         except Exception as e:
-            return {"error": str(e), "duplicate": False, "invoice_no": invoice_no, "vendor": vendor}
+            return {
+                "error": str(e),
+                "duplicate": False,
+                "invoice_no": invoice_no,
+                "vendor": vendor,
+            }
 
     # Mock: no duplicates in demo
     return {"duplicate": False, "invoice_no": invoice_no, "vendor": vendor}
@@ -609,7 +733,10 @@ def check_duplicates(invoice_no: str, vendor: str) -> dict[str, Any]:
 # 4. generate_accounting_packet(state)
 # ---------------------------------------------------------------------------
 
-def generate_accounting_packet(state: dict[str, Any], session_id: str = "") -> dict[str, Any]:
+
+def generate_accounting_packet(
+    state: dict[str, Any], session_id: str = ""
+) -> dict[str, Any]:
     """Format the final GL coding into a structured ERP-ready JSON.
 
     Saves to S3 outputs/ prefix. Returns paths to generated artifacts.
@@ -676,7 +803,9 @@ def generate_accounting_packet(state: dict[str, Any], session_id: str = "") -> d
     return {"packet": packet, "output_paths": paths}
 
 
-def generate_raw_erp_export(state: dict[str, Any], session_id: str = "") -> dict[str, Any]:
+def generate_raw_erp_export(
+    state: dict[str, Any], session_id: str = ""
+) -> dict[str, Any]:
     """Build minimal raw data for ERP export download (no metadata, UI copy, or audit)."""
     gl = state.get("gl_coding") or {}
     invoice = state.get("invoice_data") or {}

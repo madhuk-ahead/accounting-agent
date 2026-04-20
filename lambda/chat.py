@@ -31,6 +31,7 @@ _chat_tracer = get_tracer("lambda.chat")
 try:
     import boto3
     from botocore.exceptions import ClientError
+
     HAS_BOTO3 = True
 except ImportError:
     HAS_BOTO3 = False
@@ -43,7 +44,9 @@ def _get_session_id_from_connection(connection_id: str) -> str | None:
         return None
     table_name = os.getenv("DYNAMODB_SESSIONS_TABLE", "agent-template-sessions")
     try:
-        dynamodb = boto3.resource("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
+        dynamodb = boto3.resource(
+            "dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1")
+        )
         table = dynamodb.Table(table_name)
         response = table.query(
             IndexName="connection_id-index",
@@ -107,11 +110,16 @@ def _load_openai_key_from_secrets() -> None:
         secret_string = response["SecretString"]
         try:
             secret_json = json.loads(secret_string)
-            api_key = secret_json.get("OPENAI_API_KEY", secret_string) if isinstance(secret_json, dict) else secret_string
+            api_key = (
+                secret_json.get("OPENAI_API_KEY", secret_string)
+                if isinstance(secret_json, dict)
+                else secret_string
+            )
         except (json.JSONDecodeError, TypeError):
             api_key = secret_string
         os.environ["OPENAI_API_KEY"] = api_key
         from core.config import get_settings
+
         if hasattr(get_settings, "cache_clear"):
             get_settings.cache_clear()
     except Exception as e:
@@ -128,7 +136,10 @@ def _invoke_self_async(event: dict[str, Any], context: Any) -> None:
     worker_event[_ASYNC_CHAT_WORKER] = True
     payload_bytes = json.dumps(worker_event, default=str).encode("utf-8")
     if len(payload_bytes) > 250_000:
-        print(f"[CHAT] Payload {len(payload_bytes)} bytes — async invoke limit risk; running synchronously", file=sys.stderr)
+        print(
+            f"[CHAT] Payload {len(payload_bytes)} bytes — async invoke limit risk; running synchronously",
+            file=sys.stderr,
+        )
         raise _PayloadTooLargeForAsync()
     boto3.client("lambda", region_name=os.getenv("AWS_REGION", "us-east-1")).invoke(
         FunctionName=fn_arn,
@@ -143,13 +154,19 @@ class _PayloadTooLargeForAsync(Exception):
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Handle chat message: look up session, run agent, stream and send final response."""
-    print(f"[CHAT] Invoked. RequestId: {context.aws_request_id if context else 'unknown'}")
+    print(
+        f"[CHAT] Invoked. RequestId: {context.aws_request_id if context else 'unknown'}"
+    )
 
     _load_openai_key_from_secrets()
 
     # Worker path: full agent run (no API Gateway time limit).
     if event.get(_ASYNC_CHAT_WORKER):
         try:
+            print(
+                f"[CHAT] Running async worker. body={type(event.get('body', ''))}",
+                file=sys.stderr,
+            )
             return _chat_handler_body(event, context)
         finally:
             flush_telemetry()
@@ -157,13 +174,23 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     # API Gateway path: return fast so the ~29s integration limit does not kill long LLM triage.
     try:
         try:
+            print(
+                f"[CHAT] Invoking async. payload_size={len(json.dumps(event, default=str))}",
+                file=sys.stderr,
+            )
             _invoke_self_async(event, context)
         except _PayloadTooLargeForAsync:
+            print(
+                f"[CHAT] Payload too large, running sync. payload_size={len(json.dumps(event, default=str))}",
+                file=sys.stderr,
+            )
             return _chat_handler_body(event, context)
+        print("[CHAT] Returning 200 after async dispatch", file=sys.stderr)
         return {"statusCode": 200}
     except Exception as e:
         print(f"[CHAT] Async dispatch failed: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return _chat_handler_body(event, context)
     finally:
@@ -172,17 +199,28 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
 def _chat_handler_body(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
+        print(f"[CHAT] _chat_handler_body start", file=sys.stderr)
         request_context = event.get("requestContext", {})
         connection_id = request_context.get("connectionId")
         domain_name = request_context.get("domainName")
         stage = request_context.get("stage")
         if not connection_id:
+            print(f"[CHAT] No connection_id", file=sys.stderr)
             return {"statusCode": 400}
 
         session_id = _get_session_id_from_connection(connection_id)
+        print(f"[CHAT] session_id={session_id}", file=sys.stderr)
         if not session_id:
             if domain_name and stage:
-                _send_websocket_message(domain_name, stage, connection_id, {"type": "error", "content": "Session not found. Please reconnect."})
+                _send_websocket_message(
+                    domain_name,
+                    stage,
+                    connection_id,
+                    {
+                        "type": "error",
+                        "content": "Session not found. Please reconnect.",
+                    },
+                )
             return {"statusCode": 400}
 
         body = event.get("body", "{}")
@@ -190,6 +228,10 @@ def _chat_handler_body(event: dict[str, Any], context: Any) -> dict[str, Any]:
         user_text = (payload.get("text") or "").strip()
         conversation = (payload.get("conversation") or "").strip()
         form_data = dict(payload.get("form_data") or {})
+        print(
+            f"[CHAT] user_text={user_text[:50] if user_text else ''}, has_form_data={bool(form_data)}",
+            file=sys.stderr,
+        )
         if payload.get("last_display_data") is not None:
             form_data["last_display_data"] = payload["last_display_data"]
         if payload.get("last_file_content"):
@@ -206,7 +248,12 @@ def _chat_handler_body(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
         def stream_callback(message: str, msg_type: str = "status") -> None:
             if domain_name and stage:
-                _send_websocket_message(domain_name, stage, connection_id, {"type": msg_type, "content": message})
+                _send_websocket_message(
+                    domain_name,
+                    stage,
+                    connection_id,
+                    {"type": msg_type, "content": message},
+                )
 
         _ws_turns_counter.add(1)
         with _chat_tracer.start_as_current_span(
@@ -218,7 +265,10 @@ def _chat_handler_body(event: dict[str, Any], context: Any) -> dict[str, Any]:
             },
         ):
             from core.agent import get_agent_manager
+
+            print(f"[CHAT] Calling agent_manager.run", file=sys.stderr)
             agent_manager = get_agent_manager()
+            print(f"[CHAT] Running agent...", file=sys.stderr)
             result = agent_manager.run(
                 conversation_id=session_id,
                 user_text=user_text,
@@ -226,6 +276,7 @@ def _chat_handler_body(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 on_stream_message=stream_callback,
                 form_data=form_data,
             )
+            print(f"[CHAT] Agent run complete, result={type(result)}", file=sys.stderr)
 
         final_message = {
             "type": "final",
@@ -237,13 +288,23 @@ def _chat_handler_body(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "reasoning_stages": getattr(result, "reasoning_stages", None),
             "confirmation_prompt": getattr(result, "confirmation_prompt", None),
         }
+        print(
+            f"[CHAT] Sending WebSocket message. content_len={len(result.message)}",
+            file=sys.stderr,
+        )
         if domain_name and stage:
             _send_websocket_message(domain_name, stage, connection_id, final_message)
+            print(f"[CHAT] WebSocket message sent", file=sys.stderr)
 
         return {"statusCode": 200}
     except Exception as e:
         import traceback
-        err_msg = (str(e) or repr(e) or "Internal error. Check CloudWatch logs for the chat Lambda.").strip()
+
+        err_msg = (
+            str(e)
+            or repr(e)
+            or "Internal error. Check CloudWatch logs for the chat Lambda."
+        ).strip()
         print(f"[CHAT] ERROR: {err_msg}")
         traceback.print_exc()
         request_context = event.get("requestContext", {})
@@ -251,5 +312,7 @@ def _chat_handler_body(event: dict[str, Any], context: Any) -> dict[str, Any]:
         domain_name = request_context.get("domainName")
         stage = request_context.get("stage")
         if connection_id and domain_name and stage:
-            _send_websocket_message(domain_name, stage, connection_id, {"type": "error", "content": err_msg})
+            _send_websocket_message(
+                domain_name, stage, connection_id, {"type": "error", "content": err_msg}
+            )
         return {"statusCode": 500}

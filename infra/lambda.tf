@@ -12,8 +12,17 @@ locals {
   ) : {}
 }
 
+resource "aws_s3_object" "connect_lambda" {
+  bucket = aws_s3_bucket.invoice_inbox.id
+  key    = "lambda-deployments/connect_lambda.zip"
+  source = "${path.module}/../dist/connect_lambda.zip"
+  etag   = filemd5("${path.module}/../dist/connect_lambda.zip")
+}
+
 resource "aws_lambda_function" "connect" {
-  filename      = "${path.module}/../dist/connect_lambda.zip"
+  s3_bucket        = aws_s3_object.connect_lambda.bucket
+  s3_key           = aws_s3_object.connect_lambda.key
+  source_code_hash = filebase64sha256("${path.module}/../dist/connect_lambda.zip")
   function_name = "${local.name_prefix}-connect"
   role          = aws_iam_role.lambda_execution.arn
   handler       = "connect.lambda_handler"
@@ -31,8 +40,17 @@ resource "aws_lambda_function" "connect" {
   tags = local.common_tags
 }
 
+resource "aws_s3_object" "disconnect_lambda" {
+  bucket = aws_s3_bucket.invoice_inbox.id
+  key    = "lambda-deployments/disconnect_lambda.zip"
+  source = "${path.module}/../dist/disconnect_lambda.zip"
+  etag   = filemd5("${path.module}/../dist/disconnect_lambda.zip")
+}
+
 resource "aws_lambda_function" "disconnect" {
-  filename      = "${path.module}/../dist/disconnect_lambda.zip"
+  s3_bucket        = aws_s3_object.disconnect_lambda.bucket
+  s3_key           = aws_s3_object.disconnect_lambda.key
+  source_code_hash = filebase64sha256("${path.module}/../dist/disconnect_lambda.zip")
   function_name = "${local.name_prefix}-disconnect"
   role          = aws_iam_role.lambda_execution.arn
   handler       = "disconnect.lambda_handler"
